@@ -1,0 +1,38 @@
+=head1 DPP - distributed puppet
+
+Goal of this project is to replace central puppetmaster with DVCS repo + "glue" for automatizing deployment and common task.
+
+Targets:
+
+=over 4
+
+=item Remove puppetmaster bottleneck 
+
+      Each node will compile it's own config and git repos are easy to replicate.
+
+=item Provide a way for testing changes only on part of whole "cluster" by giving nodes ability to apply changes from different branches of repo
+
+      For example, create branch test-newjava, change one node (via cmdline) to use that branch, and start applying changes
+      When it works for one node, change 2 others to use that branch via "master" config, when it works commit to master, if it doesn't, rollback, and only 3 nodes were affected
+
+=item Provide secure password storage
+      
+      Some applications need to use passwords, and when you set them up/use them in manifest you don't want to have all passwords to all nodes leaked just because someone broke into one node and looked into puppet mainfests. GPG + per-client priv/pubkey, passwords stored on separate git repo on masters and shared only as GPG-encrypted and signed files to clients
+
+=item Provide "feedback" to master about changes
+
+=over 4
+
+=item facter results
+
+=item puppet run errors
+
+=item file changes/"global" filebucket as repo with branches ?
+
+=back
+
+=item Provide near-realtime updates
+
+Polling (simple http page with last commit SHA served/short cached by something fast like lighttpd) or some kind of push (multicast, http long pooling?, XMPP ??), so whole can update in minutes after push instead of 30 min "cycles". Add option to randomly add timeout and add "max puppet runs per hour" or "dont live-update in these hours"
+
+=back
