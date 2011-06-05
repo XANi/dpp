@@ -3,7 +3,7 @@ package DPP::VCS::Git;
 use 5.012003;
 use strict;
 use warnings;
-use Carp qw(cluck croak);
+use Carp qw(cluck croak carp);
 use Data::Dumper;
 require Exporter;
 
@@ -32,9 +32,9 @@ use vars qw( $GIT_DIR );
 
 sub new {
     my $self = shift;
-    my $GIT_DIR = shift;
-    if ( !defined($GIT_DIR) ) {
-	croak "No git dir defined"
+    $GIT_DIR = shift;
+    if ( !defined($GIT_DIR) || ! -d $GIT_DIR) {
+	croak "No git dir defined: $GIT_DIR"
     }
     return bless({}, $self);
 }
@@ -42,11 +42,10 @@ sub new {
 sub pull {
     my $self = shift;
     $self->_chdir;
-    if(system('git', 'pull')) {
-	return 0;
-    } else {
+    system('git', 'pull');
+    if ($?) {
 	carp("git pull terminated with error");
-	return 1;
+	return $? / 256;
     }
 }
 
@@ -65,6 +64,11 @@ sub push {
     if( defined($c->{'branch'}) ) {
 	$cmd .= " $c->{'branch'}"
     }
+    system($cmd);
+    if ($?) {
+	carp("git push terminated with error");
+    }
+    return $? / 256;
 
 
 }
