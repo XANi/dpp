@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use Config::General;
 use DPP::VCS::Git;
+our $VERSION = '0.01';
 
 
 
