@@ -3,7 +3,8 @@ package DPP::VCS::Git;
 use 5.012003;
 use strict;
 use warnings;
-
+use Carp qw(cluck croak);
+use Data::Dumper;
 require Exporter;
 
 our @ISA = qw(Exporter);
@@ -27,12 +28,77 @@ our @EXPORT = qw(
 
 our $VERSION = '0.01';
 
+use vars qw( $GIT_DIR );
+
 sub new {
     my $self = shift;
+    my $GIT_DIR = shift;
+    if ( !defined($GIT_DIR) ) {
+	croak "No git dir defined"
+    }
     return bless({}, $self);
 }
 
-# Preloaded methods go here.
+sub pull {
+    my $self = shift;
+    $self->_chdir;
+    if(system('git', 'pull')) {
+	return 0;
+    } else {
+	carp("git pull terminated with error");
+	return 1;
+    }
+}
+
+
+sub push {
+    my $self = shift;
+    my $c = shift;
+    my $target = 'origin';
+    my $branch = undef;
+    $self->_chdir;
+    my $cmd = 'git push';
+    if(defined($c->{'target'}) ) {
+	my $target = $c->{'target'};
+    }
+    $cmd .= " $target";
+    if( defined($c->{'branch'}) ) {
+	$cmd .= " $c->{'branch'}"
+    }
+
+
+}
+
+sub _chdir {
+    if ( !chdir($GIT_DIR) ) {
+	carp ("can't chdir to $GIT_DIR");
+	return 1
+    }
+    return 0
+}
+
+sub _system {
+    my $self = shift;
+    my $prog = shift;
+    my $args = shift;
+    my $msg = shift;
+    my $failed;
+    if (!defined($prog)) {croak "no program given"}
+    if(ref \$args eq 'SCALAR') {
+	if (!system($prog, $args)) {$failed = 1;}
+    }
+    elsif(ref \$args eq 'ARRAY') {
+	if (!system($prog, \$args)) {$failed = 1;}
+    } else {
+	carp ("Bad parameters");
+    }
+    if ($failed) {
+	$msg .= "Failed execution of $prog with args:" . Dumper $args;
+	carp ($msg);
+	return 1;
+    }
+    return 0
+}
 
 1;
 __END__
