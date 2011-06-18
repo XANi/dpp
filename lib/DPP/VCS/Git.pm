@@ -39,6 +39,41 @@ sub new {
     return bless({}, $self);
 }
 
+sub validate {
+    my $self = shift;
+    chdir($GIT_DIR) or return;
+    `git status  >/dev/null 2>&1` or return;
+    return 1;
+}
+
+sub create {
+    my $self = shift;
+    my $source = shift;
+    my $opts = shift;
+    my $git_opts;
+    if ( defined($opts->{'bare'}) && $opts->{'bare'} > 0 ) {
+	$git_opts .= ' --bare ';
+    }
+    system('mkdir','-p',$GIT_DIR);
+    chdir($GIT_DIR);
+    if (defined($source)) {
+	system('git', 'clone' . $git_opts . $source);
+    } else {
+	system('git', 'init' . $git_opts);
+    }
+}
+
+sub set_remote {
+    my $self = shift;
+    my $remote_name = shift;
+    my $remote_url = shift;
+    if ( !defined($remote_url) ) {carp("set_remote needs both remote name and remote url");}
+    $self->_chdir;
+    # TODO be smart, if exists use set-url
+    system('git', 'remote', 'rm', $remote_name);
+    system('git', 'remote', 'add', $remote_name, $remote_url);
+}
+
 sub pull {
     my $self = shift;
     $self->_chdir;
@@ -49,6 +84,12 @@ sub pull {
     }
 }
 
+sub checkout {
+    my $self = shift;
+    my $branch = shift;
+    $self->_chdir;
+    if ( !defined($branch) ) {croak("checkout needs branch");}
+}
 
 sub push {
     my $self = shift;

@@ -1,0 +1,12 @@
+How client works:
+0a. check if dppd_repo_dir is valid repo, if not try to download it, if failed log warning and loop
+0b. check if puppet_repo_dir is valid repo, if not clone from dppd
+0c. check if remote origin for puppet_repo_dir is set to dppd_repo_dir
+1. Check remote server for repo head hash
+2. If it's different from last one (on startup it always pulls repo), pull, if not wait and go to p.1
+3. Run puppet config checks, if failed log error and go to p.1
+4. Run pre-puppet hooks (like etckeeper)
+5. Run puppetd --test
+6. Run post-puppet hooks
+7. Log succes/failure of given commit
+8. Go to 1
