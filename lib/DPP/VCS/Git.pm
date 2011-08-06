@@ -13,36 +13,45 @@ our @ISA = qw(Exporter);
 # names by default without a very good reason. Use EXPORT_OK instead.
 # Do not simply export all your public functions/methods/constants.
 
-# This allows declaration	use DPP::VCS::Git ':all';
+# This allows declaration   use DPP::VCS::Git ':all';
 # If you do not need this, moving things directly into @EXPORT or @EXPORT_OK
 # will save memory.
 our %EXPORT_TAGS = ( 'all' => [ qw(
-	
-) ] );
+    
+                                 ) ] );
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 
 our @EXPORT = qw(
-	
-);
+    
+               );
 
 our $VERSION = '0.01';
 
-use vars qw( $GIT_DIR );
+#use vars qw( $GIT_DIR );
+
 
 sub new {
-    my $self = shift;
-    $GIT_DIR = shift;
-    if ( !defined($GIT_DIR) || ! -d $GIT_DIR) {
-	croak "No git dir defined: $GIT_DIR"
+    my $proto = shift;
+    my $class = ref($proto) || $proto;
+    my $self = {};
+    bless($self, $class);
+    $self->{GIT_DIR} = shift;
+    if ( !defined($self->{GIT_DIR}) ) {
+        croak("No git dir defined!");
+    } elsif ( -e $self->{GIT_DIR} && ! -d $self->{GIT_DIR} ) {
+        croak("$self->{GIT_DIR} exist but it's not a directory!");
     }
-    return bless({}, $self);
+
+    return $self;
+#    return bless({}, $self);
 }
 
 sub validate {
     my $self = shift;
-    chdir($GIT_DIR) or return;
-    `git status  >/dev/null 2>&1` or return;
+    my $mval = shift;
+    chdir($self->{GIT_DIR}) or return;
+    `git log -1` or return;
     return 1;
 }
 
@@ -50,16 +59,16 @@ sub create {
     my $self = shift;
     my $source = shift;
     my $opts = shift;
-    my $git_opts;
+    my $git_opts = '';
     if ( defined($opts->{'bare'}) && $opts->{'bare'} > 0 ) {
-	$git_opts .= ' --bare ';
+        $git_opts .= ' --bare ';
     }
-    system('mkdir','-p',$GIT_DIR);
-    chdir($GIT_DIR);
+    system('mkdir','-p',$self->{GIT_DIR});
+    chdir($self->{GIT_DIR});
     if (defined($source)) {
-	system('git', 'clone' . $git_opts . $source);
+        system('git ' . 'clone ' . $git_opts . $source . ' ' . $self->{GIT_DIR});
     } else {
-	system('git', 'init' . $git_opts);
+        system('git ' . 'init ' . $git_opts);
     }
 }
 
@@ -67,7 +76,9 @@ sub set_remote {
     my $self = shift;
     my $remote_name = shift;
     my $remote_url = shift;
-    if ( !defined($remote_url) ) {carp("set_remote needs both remote name and remote url");}
+    if ( !defined($remote_url) ) {
+        carp("set_remote needs both remote name and remote url");
+    }
     $self->_chdir;
     # TODO be smart, if exists use set-url
     system('git', 'remote', 'rm', $remote_name);
@@ -79,8 +90,18 @@ sub pull {
     $self->_chdir;
     system('git', 'pull');
     if ($?) {
-	carp("git pull terminated with error");
-	return $? / 256;
+        carp("git pull terminated with error");
+        return $? / 256;
+    }
+}
+
+sub fetch {
+    my $self = shift;
+    $self->_chdir;
+    system('git', 'fetch');
+    if ($?) {
+        carp("git fetch terminated with error");
+        return $? / 256;
     }
 }
 
@@ -88,7 +109,9 @@ sub checkout {
     my $self = shift;
     my $branch = shift;
     $self->_chdir;
-    if ( !defined($branch) ) {croak("checkout needs branch");}
+    if ( !defined($branch) ) {
+        croak("checkout needs branch");
+    }
 }
 
 sub push {
@@ -98,16 +121,16 @@ sub push {
     my $branch = undef;
     $self->_chdir;
     my $cmd = 'git push';
-    if(defined($c->{'target'}) ) {
-	my $target = $c->{'target'};
+    if (defined($c->{'target'}) ) {
+        my $target = $c->{'target'};
     }
     $cmd .= " $target";
-    if( defined($c->{'branch'}) ) {
-	$cmd .= " $c->{'branch'}"
+    if ( defined($c->{'branch'}) ) {
+        $cmd .= " $c->{'branch'}"
     }
     system($cmd);
     if ($?) {
-	carp("git push terminated with error");
+        carp("git push terminated with error");
     }
     return $? / 256;
 
@@ -115,9 +138,10 @@ sub push {
 }
 
 sub _chdir {
-    if ( !chdir($GIT_DIR) ) {
-	carp ("can't chdir to $GIT_DIR");
-	return 1
+    my $self = shift;
+    if ( !chdir($self->{GIT_DIR}) ) {
+        carp ("can't chdir to " . $self->{GIT_DIR});
+        return 1
     }
     return 0
 }
@@ -128,19 +152,24 @@ sub _system {
     my $args = shift;
     my $msg = shift;
     my $failed;
-    if (!defined($prog)) {croak "no program given"}
-    if(ref \$args eq 'SCALAR') {
-	if (!system($prog, $args)) {$failed = 1;}
+    if (!defined($prog)) {
+        croak "no program given";
     }
-    elsif(ref \$args eq 'ARRAY') {
-	if (!system($prog, \$args)) {$failed = 1;}
+    if (ref \$args eq 'SCALAR') {
+        if (!system($prog, $args)) {
+            $failed = 1;
+        }
+    } elsif (ref \$args eq 'ARRAY') {
+        if (!system($prog, \$args)) {
+            $failed = 1;
+        }
     } else {
-	carp ("Bad parameters");
+        carp ("Bad parameters");
     }
     if ($failed) {
-	$msg .= "Failed execution of $prog with args:" . Dumper $args;
-	carp ($msg);
-	return 1;
+        $msg .= "Failed execution of $prog with args:" . Dumper $args;
+        carp ($msg);
+        return 1;
     }
     return 0
 }
@@ -192,8 +221,8 @@ xani, E<lt>xani@E<gt>
 Copyright (C) 2011 by xani
 
 This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself, either Perl version 5.12.3 or,
-at your option, any later version of Perl 5 you may have available.
+  it under the same terms as Perl itself, either Perl version 5.12.3 or,
+  at your option, any later version of Perl 5 you may have available.
 
 
-=cut
+  =cut
