@@ -5,3 +5,4 @@
 DEADJOE
 Makefile.old
 blib/*
+client/dppd.conf
