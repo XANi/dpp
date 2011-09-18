@@ -45,10 +45,11 @@ while ( sleep int($cfg->{'poll_interval'}) ) {
     # TODO use normal LWP, send facter data
     my ($content_type, $document_length, $modified_time, $expires, $server) = head($cfg->{'puppet_repo_check_url'});
     if ( !defined($modified_time) ) {
-       warn("HEAD of " . $cfg->{'puppet_repo_check_url'} . " 
+        warn("HEAD of " . $cfg->{'puppet_repo_check_url'} . "
 failed");
        next;
     }
+    # fix: use branch head hash instead
     if ($url_mtime ne $modified_time) {
         $url_mtime = $modified_time;
         debug("pooler indicates new commit, downloading");
@@ -56,7 +57,9 @@ failed");
         $p_repo->pull;
         debug("Running Puppet");
 #        system("puppetd --test --noop --confdir=" . $cfg->{'puppet_repo_dir'});
-        system("puppet apply -v " .$cfg->{'puppet_repo_dir'} . '/puppet/manifests/site.pp');
+        system("puppet apply -v " .
+               "--modulepath=$cfg->{'puppet_repo_dir'}/puppet/modules/ " .
+               $cfg->{'puppet_repo_dir'} . '/puppet/manifests/site.pp');
     }
 }
 
