@@ -70,8 +70,6 @@ while ( sleep int($cfg->{'poll_interval'}) ) {
         #        system("puppetd --test --noop --confdir=" . $cfg->{'puppet_repo_dir'});
         system('puppet',  'apply', '-v',
                "--modulepath=$cfg->{'puppet_repo_dir'}/puppet/modules/",
-               "--verbose",
-               "--debug",
                $cfg->{'puppet_repo_dir'} . '/puppet/manifests/site.pp');
 
 
