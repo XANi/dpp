@@ -36,3 +36,15 @@ Some applications need to use passwords, and when you set them up/use them in ma
 Polling (simple http page with last commit SHA served/short cached by something fast like lighttpd) or some kind of push (multicast, http long pooling?, XMPP ??), so whole can update in minutes after push instead of 30 min "cycles". Add option to randomly add timeout and add "max puppet runs per hour" or "dont live-update in these hours"
 
 =back
+
+=head2 Reqired packages:
+
+=over 4
+
+=item puppet (obviously)
+
+=item libconfig-general-perl
+
+=item libwww-perl
+
+=back
