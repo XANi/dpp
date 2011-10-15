@@ -1,6 +1,6 @@
 package DPP::VCS::Git;
 
-use 5.012003;
+use 5.010000;
 use strict;
 use warnings;
 use Carp qw(cluck croak carp);
