@@ -32,7 +32,10 @@ foreach my $cfg_option (@validate) {
         carp ("Essential variable $cfg_option not defined in config!!!");
     }
 }
+<<<<<<< HEAD:client/dpp.pl
 my $date_format = '%Y/%m/%d %T%z';
+=======
+>>>>>>> fa25012b338637fc5abf7fb1cffbe1229cca61d8:client/dpp.pl
 if (defined($cfg->{'pid_file'})) {
     open(PID, '>', $cfg->{'pid_file'});
     print PID $$;
@@ -57,7 +60,11 @@ while ( sleep int($cfg->{'poll_interval'}) ) {
     my $repo_branches = get($cfg->{'puppet_repo_check_url'});
     if ( !defined($repo_branches) ) {
         $status = "GET failed";
+<<<<<<< HEAD:client/dpp.pl
         warn("GET of " . $cfg->{'puppet_repo_check_url'} . " failed");
+=======
+        warn("GET of " . $cfg->{'puppet_repo_check_url'} . "failed");
+>>>>>>> fa25012b338637fc5abf7fb1cffbe1229cca61d8:client/dpp.pl
         next;
     }
     my $repover_hash = sha1_hex($repo_branches);
@@ -75,8 +82,14 @@ while ( sleep int($cfg->{'poll_interval'}) ) {
                $cfg->{'puppet_repo_dir'} . '/puppet/manifests/site.pp');
 
 
+<<<<<<< HEAD:client/dpp.pl
         debug("Puppet run finished");
         #               "--config-version=git log -1 --abbrev-commit --format='$version_format'",
+=======
+	debug("Puppet run finished");
+        #               "--config-version=git log -1 --abbrev-commit --format='$version_format'",
+        
+>>>>>>> fa25012b338637fc5abf7fb1cffbe1229cca61d8:client/dpp.pl
     }
     if ( defined($cfg->{'status_file'}) ) {
         open(STATUS, '>', $cfg->{'status_file'});
@@ -88,8 +101,12 @@ while ( sleep int($cfg->{'poll_interval'}) ) {
 # TODO real logging
 sub err {
     my $msg = shift;
+<<<<<<< HEAD:client/dpp.pl
     my $date = strftime($date_format, localtime);
     print STDERR "$date err: " . $msg . "\n";
+=======
+    print STDERR 'err: ' . $msg . "\n";
+>>>>>>> fa25012b338637fc5abf7fb1cffbe1229cca61d8:client/dpp.pl
 }
 sub warn {
     my $msg = shift;
