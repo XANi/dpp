@@ -26,7 +26,7 @@ my @validate = (
                 'poll_interval',
                 'on_change_min_wait',
                 'poll_interval',
-               );
+            );
 foreach my $cfg_option (@validate) {
     if ( !defined($cfg->{$cfg_option}) ) {
         carp ("Essential variable $cfg_option not defined in config!!!");
@@ -51,6 +51,7 @@ if ( !$p_repo->validate() ) {
 # now either repo should be ready or we died
 my $repover_hash;
 my $repover_hash_old;
+my $last_run=0;
 while ( sleep int($cfg->{'poll_interval'}) ) {
     my $status = 'no changes';
     # TODO use normal LWP, send facter data, check branch only not whole file
@@ -62,25 +63,34 @@ while ( sleep int($cfg->{'poll_interval'}) ) {
     }
     my $repover_hash = sha1_hex($repo_branches);
     # fix: use branch head hash instead
-    if ($repover_hash_old ne $repover_hash) {
-        $status = 'new commit';
+    my $run=0;
+    if ( $repover_hash_old ne $repover_hash) {
         $repover_hash_old = $repover_hash;
-        debug("pooler indicates commit (config hash $repover_hash), downloading");
-        debug("DUMMY we will run puppet checks here");
-        $p_repo->pull;
-        debug("Running Puppet");
-        #        system("puppetd --test --noop --confdir=" . $cfg->{'puppet_repo_dir'});
-        system('puppet',  'apply', '-v',
-               "--modulepath=$cfg->{'puppet_repo_dir'}/puppet/modules/",
-               $cfg->{'puppet_repo_dir'} . '/puppet/manifests/site.pp');
-        debug("Puppet run finished");
-        #               "--config-version=git log -1 --abbrev-commit --format='$version_format'",
+        $status = 'new commit';
+        $run=1;
+    } elsif ( $last_run < (time() - ( $cfg->{'schedule_run'} * 60 ) ) ) {
+        $status = 'new commit';
+        $run=1;
     }
+    if ($run < 1) {
+        next; #nothing to run
+    }
+    debug("pooler indicates commit (config hash $repover_hash), downloading");
+    debug("DUMMY we will run puppet checks here");
+    $p_repo->pull;
+    debug("Running Puppet");
+    #        system("puppetd --test --noop --confdir=" . $cfg->{'puppet_repo_dir'});
+    system('puppet',  'apply', '-v',
+           "--modulepath=$cfg->{'puppet_repo_dir'}/puppet/modules/",
+           $cfg->{'puppet_repo_dir'} . '/puppet/manifests/site.pp');
+    debug("Puppet run finished");
+    #               "--config-version=git log -1 --abbrev-commit --format='$version_format'",
     if ( defined($cfg->{'status_file'}) ) {
         open(STATUS, '>', $cfg->{'status_file'});
         print STATUS $status;
         close(STATUS);
     }
+    $last_run=time();
 }
 
 # TODO real logging
