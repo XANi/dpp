@@ -78,6 +78,9 @@ while ( sleep int($cfg->{'poll_interval'}) ) {
     debug("pooler indicates commit (config hash $repover_hash), downloading");
     debug("DUMMY we will run puppet checks here");
     $p_repo->pull;
+    if( defined($cfg->{'puppet_repo_branch'}) ) {
+        $p_repo->checkout($cfg->{'puppet_repo_branch'});
+    }
     debug("Running Puppet");
     #        system("puppetd --test --noop --confdir=" . $cfg->{'puppet_repo_dir'});
     system('puppet',  'apply', '-v',
