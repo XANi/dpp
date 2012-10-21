@@ -79,6 +79,7 @@ while ( sleep int($cfg->{'poll_interval'}) ) {
     debug("DUMMY we will run puppet checks here");
     $p_repo->pull;
     if( defined($cfg->{'puppet_repo_branch'}) ) {
+        &info("Checkouting " . $cfg->{'puppet_repo_branch'});
         $p_repo->checkout($cfg->{'puppet_repo_branch'});
     }
     debug("Running Puppet");
@@ -97,6 +98,11 @@ while ( sleep int($cfg->{'poll_interval'}) ) {
 }
 
 # TODO real logging
+sub info {
+    my $msg = shift;
+    my $date = strftime($date_format, localtime);
+    print STDERR "$date info: " . $msg . "\n";
+}
 sub err {
     my $msg = shift;
     my $date = strftime($date_format, localtime);
