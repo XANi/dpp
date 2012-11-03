@@ -7,29 +7,29 @@ use POSIX qw/strftime/;
 use Config::General;
 use DPP::VCS::Git;
 use LWP::Simple;
+use File::Slurp;
+use YAML;
 use Data::Dumper;
 use Digest::SHA qw(sha1_hex);
 
 our $VERSION = '0.01';
-my $c = new Config::General(-ConfigFile => '/etc/dpp.conf',
-                            -MergeDuplicateBlocks => 'true',
-                            -MergeDuplicateOptions => 'true',
-                            -AllowMultiOptions => 'true'
-                           );
-my %cfg = $c->getall;
-my $cfg =\%cfg;
+my $yaml = read_file('/etc/dpp.conf');
+my $cfg = Load($yaml) or croak($!);
+
+
 # simple validate of config vars, TODO make better
 my @validate = (
-                'puppet_repo',
-                'puppet_repo_dir',
-                'puppet_repo_check_url',
+                'repo',
+                'repo_dir',
                 'poll_interval',
                 'on_change_min_wait',
                 'poll_interval',
             );
+
+
 foreach my $cfg_option (@validate) {
     if ( !defined($cfg->{$cfg_option}) ) {
-        carp ("Essential variable $cfg_option not defined in config!!!");
+        croak ("Essential variable $cfg_option not defined in config!!!");
     }
 }
 my $date_format = '%Y/%m/%d %T%z';
@@ -43,52 +43,53 @@ if ($cfg->{'poll_interval'} < 1) {
 }
 # init
 print Dumper $cfg;
-my $p_repo = DPP::VCS::Git->new($cfg->{'puppet_repo_dir'});
-if ( !$p_repo->validate() ) {
-    $p_repo->create($cfg->{'puppet_repo'});
-    $p_repo->validate() or croak("validate of dpp_puppet repo failed after cloning from " . $cfg->{'puppet_repo'});
+
+my $puppet_module_path = &generate_module_path;
+my $puppet_main_repo = $cfg->{'repo_dir'} . '/shared';
+
+my $repos = {};
+while (my ($repo, $repo_config) = each ( %{ $cfg->{'repo'} } ) ) {
+    my $repo_path = $cfg->{'repo_dir'} . '/' . $repo;
+    if (!defined($repo_config->{'force'})) {
+        $repo_config->{'force'}=0;
+    }
+    my $p_repo = DPP::VCS::Git->new(
+        git_dir => $repo_path,
+        force => $repo_config->{'force'}
+    );
+    if ( !$p_repo->validate() ) {
+        $p_repo->create($repo_config->{'pull_url'});
+        $p_repo->validate() or croak("validate of dpp_puppet repo failed after cloning from " . $repo_config->{'pull_url'});
+    }
+    $repos->{$repo}{'object'} = $p_repo;
+    $repos->{$repo}{'hash'} = '';
 }
 # now either repo should be ready or we died
 my $repover_hash;
 my $repover_hash_old;
 my $last_run=0;
 while ( sleep int($cfg->{'poll_interval'}) ) {
-    my $status = 'no changes';
-    # TODO use normal LWP, send facter data, check branch only not whole file
-    my $repo_branches = get($cfg->{'puppet_repo_check_url'});
-    if ( !defined($repo_branches) ) {
-        $status = "GET failed";
-        warn("GET of " . $cfg->{'puppet_repo_check_url'} . " failed");
-        next;
-    }
-    my $repover_hash = sha1_hex($repo_branches);
-    # fix: use branch head hash instead
+    my $status;
     my $run=0;
-    if ( $repover_hash_old ne $repover_hash) {
-        $repover_hash_old = $repover_hash;
-        $status = 'new commit';
-        $run=1;
-    } elsif ( $last_run < (time() - ( $cfg->{'schedule_run'} * 60 ) ) ) {
-        $status = 'new commit';
-        $run=1;
+    while ( my ($repo_name, $repo) = each (%$repos) ) {
+        &info("Checking $repo_name");
+        # TODO not dumb check url
+        my $get = get( $cfg->{'repo'}{$repo_name}{'check_url'} ) or carp ($?) ;
+        my $hash = sha1_hex($get);
+        &debug("  H:$hash");
+        if ($hash ne $repo->{'hash'}) {
+            $repo->{'hash'} = $hash;
+            $repo->{'object'}->pull;
+            $repo->{'object'}->checkout( $cfg->{'repo'}{$repo_name}{'branch'} );
+            $run = 1;
+            $status .= "new commit in $repo_name  # ";
+        }
     }
     if ($run < 1) {
-        next; #nothing to run
+        next #nothing to run
     }
-    debug("pooler indicates commit (config hash $repover_hash), downloading");
     debug("DUMMY we will run puppet checks here");
-    $p_repo->pull;
-    if( defined($cfg->{'puppet_repo_branch'}) ) {
-        &info("Checkouting " . $cfg->{'puppet_repo_branch'});
-        $p_repo->checkout($cfg->{'puppet_repo_branch'});
-    }
-    debug("Running Puppet");
-    #        system("puppetd --test --noop --confdir=" . $cfg->{'puppet_repo_dir'});
-    system('puppet',  'apply', '-v',
-           "--modulepath=$cfg->{'puppet_repo_dir'}/puppet/modules/",
-           $cfg->{'puppet_repo_dir'} . '/puppet/manifests/site.pp');
-    debug("Puppet run finished");
-    #               "--config-version=git log -1 --abbrev-commit --format='$version_format'",
+    &run_puppet;
     if ( defined($cfg->{'status_file'}) ) {
         open(STATUS, '>', $cfg->{'status_file'});
         print STATUS $status;
@@ -96,6 +97,24 @@ while ( sleep int($cfg->{'poll_interval'}) ) {
     }
     $last_run=time();
 }
+
+sub run_puppet {
+    debug("Running Puppet");
+    #        system("puppetd --test --noop --confdir=" . $cfg->{'puppet_repo_dir'});
+    system('puppet',  'apply', '-v',
+           "--modulepath=$puppet_module_path" ,
+           $puppet_main_repo . '/puppet/manifests/site.pp');
+    debug("Puppet run finished");
+}
+
+sub generate_module_path {
+    my @puppet_module_path;
+    foreach(@{ $cfg->{'use_repos'} }) {
+        push(@puppet_module_path, $cfg->{'repo_dir'} . '/' . $_ . '/modules');
+    }
+    return join(':',@puppet_module_path);
+}
+
 
 # TODO real logging
 sub info {
@@ -115,6 +134,8 @@ sub warn {
 }
 sub debug {
     my $msg = shift;
-    my $date = strftime($date_format, localtime);
-    print STDERR "$date debug: " . $msg . "\n";
+    if( defined($cfg->{'debug'} ) ) {
+        my $date = strftime($date_format, localtime);
+        print STDERR "$date debug: " . $msg . "\n";
+    }
 }

@@ -28,19 +28,21 @@ our @EXPORT = qw(
 
 our $VERSION = '0.01';
 
-#use vars qw( $GIT_DIR );
-
-
 sub new {
     my $proto = shift;
     my $class = ref($proto) || $proto;
     my $self = {};
     bless($self, $class);
-    $self->{GIT_DIR} = shift;
-    if ( !defined($self->{GIT_DIR}) ) {
+    my %cfg = @_;
+    $self->{'cfg'} = \%cfg;
+
+    if ( !defined($self->{'cfg'}{'git_dir'}) ) {
         croak("No git dir defined!");
-    } elsif ( -e $self->{GIT_DIR} && ! -d $self->{GIT_DIR} ) {
-        croak("$self->{GIT_DIR} exist but it's not a directory!");
+    } elsif ( -e $self->{'cfg'}{'git_dir'} && ! -d $self->{'cfg'}{'git_dir'} ) {
+        croak("$self->{'cfg'}{'git_dir'} exist but it's not a directory!");
+    }
+    if(defined($self->{'cfg'}{'force'}) && $self->{'cfg'}{'force'} <= 0) {
+        delete $self->{'cfg'}{'force'};
     }
 
     return $self;
@@ -50,7 +52,7 @@ sub new {
 sub validate {
     my $self = shift;
     my $mval = shift;
-    chdir($self->{GIT_DIR}) or return;
+    chdir($self->{'cfg'}{'git_dir'}) or return;
     `git log -1` or return;
     return 1;
 }
@@ -63,10 +65,10 @@ sub create {
     if ( defined($opts->{'bare'}) && $opts->{'bare'} > 0 ) {
         $git_opts .= ' --bare ';
     }
-    system('mkdir','-p',$self->{GIT_DIR});
-    chdir($self->{GIT_DIR});
+    system('mkdir','-p',$self->{'cfg'}{'git_dir'});
+    chdir($self->{'cfg'}{'git_dir'});
     if (defined($source)) {
-        system('git ' . 'clone ' . $git_opts . $source . ' ' . $self->{GIT_DIR});
+        system('git ' . 'clone ' . $git_opts . $source . ' ' . $self->{'cfg'}{'git_dir'});
     } else {
         system('git ' . 'init ' . $git_opts);
     }
@@ -88,7 +90,12 @@ sub set_remote {
 sub pull {
     my $self = shift;
     $self->_chdir;
-    system('git', 'pull');
+    if(defined($self->{'cfg'}{'force'})) {
+        system('git', 'pull', '--force');
+    }
+    else {
+        system('git', 'pull');
+    }
     if ($?) {
         carp("git pull terminated with error");
         return $? / 256;
@@ -112,7 +119,12 @@ sub checkout {
     if ( !defined($branch) ) {
         croak("checkout needs branch");
     }
-    system('git', 'checkout', $branch);
+    if(defined($self->{'cfg'}{'force'})) {
+        system('git', 'checkout','--force', $branch);
+    }
+    else {
+        system('git', 'checkout', $branch);
+    }
     if ($?) {
         carp("git branch terminated with error");
         return $? / 256;
@@ -144,8 +156,8 @@ sub push {
 
 sub _chdir {
     my $self = shift;
-    if ( !chdir($self->{GIT_DIR}) ) {
-        carp ("can't chdir to " . $self->{GIT_DIR});
+    if ( !chdir($self->{'cfg'}{'git_dir'}) ) {
+        carp ("can't chdir to " . $self->{'cfg'}{'git_dir'});
         return 1
     }
     return 0
