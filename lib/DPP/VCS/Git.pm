@@ -90,12 +90,7 @@ sub set_remote {
 sub pull {
     my $self = shift;
     $self->_chdir;
-    if(defined($self->{'cfg'}{'force'})) {
-        system('git', 'pull', '--force');
-    }
-    else {
-        system('git', 'pull');
-    }
+    system('git', 'pull', '--all');
     if ($?) {
         carp("git pull terminated with error");
         return $? / 256;
@@ -120,11 +115,9 @@ sub checkout {
         croak("checkout needs branch");
     }
     if(defined($self->{'cfg'}{'force'})) {
-        system('git', 'checkout','--force', $branch);
+        system('git', 'reset','--hard', 'origin/' . $branch);
     }
-    else {
-        system('git', 'checkout', $branch);
-    }
+    system('git', 'checkout', $branch);
     if ($?) {
         carp("git branch terminated with error");
         return $? / 256;
