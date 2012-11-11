@@ -6,7 +6,7 @@ Targets:
 
 =over 4
 
-=item Remove puppetmaster bottleneck 
+=item Remove puppetmaster bottleneck
 
 Each node will compile it's own config and git repos are easy to replicate.
 
@@ -16,7 +16,7 @@ For example, create branch test-newjava, change one node (via cmdline) to use th
 When it works for one node, change 2 others to use that branch via "master" config, when it works commit to master, if it doesn't, rollback, and only 3 nodes were affected
 
 =item Provide secure password storage
-      
+
 Some applications need to use passwords, and when you set them up/use them in manifest you don't want to have all passwords to all nodes leaked just because someone broke into one node and looked into puppet mainfests. GPG + per-client priv/pubkey, passwords stored on separate git repo on masters and shared only as GPG-encrypted and signed files to clients
 
 =item Provide "feedback" to master about changes
@@ -36,6 +36,18 @@ Some applications need to use passwords, and when you set them up/use them in ma
 Polling (simple http page with last commit SHA served/short cached by something fast like lighttpd) or some kind of push (multicast, http long pooling?, XMPP ??), so whole can update in minutes after push instead of 30 min "cycles". Add option to randomly add timeout and add "max puppet runs per hour" or "dont live-update in these hours"
 
 =back
+
+=head2 Features:
+
+=over 4
+
+=item Multiple repos
+
+It can download multiple repos and automatically construct module path for puppet
+
+=item branches
+
+Can be configured to pull from certain branch instead of default
 
 =head2 Reqired packages:
 
