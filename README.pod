@@ -59,4 +59,10 @@ Can be configured to pull from certain branch instead of default
 
 =item libwww-perl
 
+=item liblog-any-perl
+
+=item liblog-dispatch-perl
+
+=item libyaml-perl
+
 =back
