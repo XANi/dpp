@@ -12,9 +12,25 @@ use YAML;
 use Data::Dumper;
 use Digest::SHA qw(sha1_hex);
 
+use Log::Dispatch;
+use Log::Dispatch::Screen;
+
+
+
 our $VERSION = '0.01';
 my $yaml = read_file('/etc/dpp.conf');
 my $cfg = Load($yaml) or croak($!);
+
+
+my $log = Log::Dispatch->new();
+$log->add(
+    Log::Dispatch::Screen->new(
+        name      => 'screen',
+        min_level => 'debug',
+        callbacks => (\&_log_helper_timestamp),
+    )
+);
+
 
 
 # simple validate of config vars, TODO make better
@@ -72,11 +88,11 @@ while ( sleep int($cfg->{'poll_interval'}) ) {
     my $status;
     my $run=0;
     while ( my ($repo_name, $repo) = each (%$repos) ) {
-        &info("Checking $repo_name");
+        $log->info("Checking $repo_name");
         # TODO not dumb check url
         my $get = get( $cfg->{'repo'}{$repo_name}{'check_url'} ) or carp ($?) ;
         my $hash = sha1_hex($get);
-        &debug("  H:$hash");
+        $log->debug("  H:$hash");
         if ($hash ne $repo->{'hash'}) {
             $repo->{'hash'} = $hash;
             $repo->{'object'}->pull;
@@ -88,7 +104,7 @@ while ( sleep int($cfg->{'poll_interval'}) ) {
     if ($run < 1) {
         next #nothing to run
     }
-    debug("DUMMY we will run puppet checks here");
+    $log->debug("DUMMY we will run puppet checks here");
     &run_puppet;
     if ( defined($cfg->{'status_file'}) ) {
         open(STATUS, '>', $cfg->{'status_file'});
@@ -99,12 +115,12 @@ while ( sleep int($cfg->{'poll_interval'}) ) {
 }
 
 sub run_puppet {
-    debug("Running Puppet");
+    $log->debug("Running Puppet");
     #        system("puppetd --test --noop --confdir=" . $cfg->{'puppet_repo_dir'});
     system('puppet',  'apply', '-v',
            "--modulepath=$puppet_module_path" ,
            $puppet_main_repo . '/puppet/manifests/site.pp');
-    debug("Puppet run finished");
+    $log->debug("Puppet run finished");
 }
 
 sub generate_module_path {
@@ -115,27 +131,13 @@ sub generate_module_path {
     return join(':',@puppet_module_path);
 }
 
-
-# TODO real logging
-sub info {
-    my $msg = shift;
-    my $date = strftime($date_format, localtime);
-    print STDERR "$date info: " . $msg . "\n";
-}
-sub err {
-    my $msg = shift;
-    my $date = strftime($date_format, localtime);
-    print STDERR "$date err: " . $msg . "\n";
-}
-sub warn {
-    my $msg = shift;
-    my $date = strftime($date_format, localtime);
-    print STDERR "$date warn: " . $msg . "\n";
-}
-sub debug {
-    my $msg = shift;
-    if( defined($cfg->{'debug'} ) ) {
-        my $date = strftime($date_format, localtime);
-        print STDERR "$date debug: " . $msg . "\n";
+sub _log_helper_timestamp() {
+    my %a = @_;
+    my $out;
+    my $multiline_mark = '';
+    foreach( split(/\n/,$a{'message'}) ) {
+        $out .= strftime('%Y-%m-%dT%H:%M:%S%z',localtime(time)) . ' ' . $a{'level'} . ': ' . $multiline_mark . $_ . "\n";
+        $multiline_mark = '.  '
     }
+    return $out
 }
