@@ -11,7 +11,10 @@ use File::Slurp;
 use YAML;
 use Data::Dumper;
 use Digest::SHA qw(sha1_hex);
-
+use Symbol qw(gensym);
+use IPC::Open3;
+use Log::Any qw($log);
+use Log::Any::Adapter;
 use Log::Dispatch;
 use Log::Dispatch::Screen;
 
@@ -21,15 +24,15 @@ our $VERSION = '0.01';
 my $yaml = read_file('/etc/dpp.conf');
 my $cfg = Load($yaml) or croak($!);
 
-
-my $log = Log::Dispatch->new();
-$log->add(
+my $logger = Log::Dispatch->new();
+$logger->add(
     Log::Dispatch::Screen->new(
         name      => 'screen',
         min_level => 'debug',
         callbacks => (\&_log_helper_timestamp),
     )
 );
+Log::Any::Adapter->set( 'Dispatch', dispatcher => $logger );
 
 
 
@@ -58,7 +61,7 @@ if ($cfg->{'poll_interval'} < 1) {
     carp {'poll_interval have to be > 1'};
 }
 # init
-print Dumper $cfg;
+$log->debug("Config: \n" .  Dumper $cfg);
 
 my $puppet_module_path = &generate_module_path;
 my $puppet_main_repo = $cfg->{'repo_dir'} . '/shared';
@@ -115,11 +118,16 @@ while ( sleep int($cfg->{'poll_interval'}) ) {
 }
 
 sub run_puppet {
+    my $out = gensym;
     $log->debug("Running Puppet");
     #        system("puppetd --test --noop --confdir=" . $cfg->{'puppet_repo_dir'});
-    system('puppet',  'apply', '-v',
+    my $pid = open3(undef, $out, $out,'puppet',  'apply', '-v',
            "--modulepath=$puppet_module_path" ,
            $puppet_main_repo . '/puppet/manifests/site.pp');
+    while(<$out>) {
+        $log->info($_);
+    }
+    waitpid( $pid, 0 );
     $log->debug("Puppet run finished");
 }
 

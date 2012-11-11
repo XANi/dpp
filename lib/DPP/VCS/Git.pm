@@ -5,6 +5,10 @@ use strict;
 use warnings;
 use Carp qw(cluck croak carp);
 use Data::Dumper;
+use Log::Any qw($log);
+use Symbol qw(gensym);
+use IPC::Open3;
+use File::Path qw(make_path);
 require Exporter;
 
 our @ISA = qw(Exporter);
@@ -35,7 +39,6 @@ sub new {
     bless($self, $class);
     my %cfg = @_;
     $self->{'cfg'} = \%cfg;
-
     if ( !defined($self->{'cfg'}{'git_dir'}) ) {
         croak("No git dir defined!");
     } elsif ( -e $self->{'cfg'}{'git_dir'} && ! -d $self->{'cfg'}{'git_dir'} ) {
@@ -61,17 +64,17 @@ sub create {
     my $self = shift;
     my $source = shift;
     my $opts = shift;
-    my $git_opts = '';
+    my $cmd = ['clone'];
     if ( defined($opts->{'bare'}) && $opts->{'bare'} > 0 ) {
-        $git_opts .= ' --bare ';
+        push @$cmd, '--bare';
     }
-    system('mkdir','-p',$self->{'cfg'}{'git_dir'});
+    make_path($self->{'cfg'}{'git_dir'});
     chdir($self->{'cfg'}{'git_dir'});
     if (defined($source)) {
-        system('git ' . 'clone ' . $git_opts . $source . ' ' . $self->{'cfg'}{'git_dir'});
-    } else {
-        system('git ' . 'init ' . $git_opts);
+        push @$cmd, $source;
+        push @$cmd, $self->{'cfg'}{'git_dir'};
     }
+    $self->_system('git', $cmd, 'info');
 }
 
 sub set_remote {
@@ -83,14 +86,18 @@ sub set_remote {
     }
     $self->_chdir;
     # TODO be smart, if exists use set-url
-    system('git', 'remote', 'rm', $remote_name);
-    system('git', 'remote', 'add', $remote_name, $remote_url);
+    $self->_system('git', ['remote', 'rm', $remote_name ]);
+    $self->_system('git', ['remote', 'add', $remote_name, $remote_url]);
 }
 
 sub pull {
     my $self = shift;
     $self->_chdir;
-    system('git', 'pull', '--all');
+    $self->_system(
+        'git',
+        [ 'pull', '--all'],
+        'notice',
+    );
     if ($?) {
         carp("git pull terminated with error");
         return $? / 256;
@@ -100,11 +107,7 @@ sub pull {
 sub fetch {
     my $self = shift;
     $self->_chdir;
-    system('git', 'fetch');
-    if ($?) {
-        carp("git fetch terminated with error");
-        return $? / 256;
-    }
+    return $self->_system('git', 'fetch');
 }
 
 sub checkout {
@@ -115,13 +118,17 @@ sub checkout {
         croak("checkout needs branch");
     }
     if(defined($self->{'cfg'}{'force'})) {
-        system('git', 'reset','--hard', 'origin/' . $branch);
+        $self->_system(
+            'git',
+            ['reset','--hard', 'origin/' . $branch],
+            'notice',
+        );
     }
-    system('git', 'checkout', $branch);
-    if ($?) {
-        carp("git branch terminated with error");
-        return $? / 256;
-    }
+    return $self->_system(
+        'git',
+        ['checkout', $branch],
+        'notice',
+    )
 }
 
 sub push {
@@ -130,21 +137,15 @@ sub push {
     my $target = 'origin';
     my $branch = undef;
     $self->_chdir;
-    my $cmd = 'git push';
+    my $cmd = ['push'];
     if (defined($c->{'target'}) ) {
         my $target = $c->{'target'};
     }
-    $cmd .= " $target";
+    push @$cmd, $target;
     if ( defined($c->{'branch'}) ) {
-        $cmd .= " $c->{'branch'}"
+        push @$cmd, $c->{'branch'};
     }
-    system($cmd);
-    if ($?) {
-        carp("git push terminated with error");
-    }
-    return $? / 256;
-
-
+    $self->_system('git', $cmd);
 }
 
 sub _chdir {
@@ -160,28 +161,25 @@ sub _system {
     my $self = shift;
     my $prog = shift;
     my $args = shift;
-    my $msg = shift;
+    my $loglvl = shift;
+    $loglvl ||= 'info';
     my $failed;
+    my $fh_out = gensym;
     if (!defined($prog)) {
         croak "no program given";
     }
-    if (ref \$args eq 'SCALAR') {
-        if (!system($prog, $args)) {
-            $failed = 1;
-        }
-    } elsif (ref \$args eq 'ARRAY') {
-        if (!system($prog, \$args)) {
-            $failed = 1;
-        }
-    } else {
-        carp ("Bad parameters");
+    if (ref $args eq 'SCALAR') {
+        $args = [ $args ],
+    } elsif (ref $args ne 'ARRAY') {
+        croak ("Bad parameters");
     }
-    if ($failed) {
-        $msg .= "Failed execution of $prog with args:" . Dumper $args;
-        carp ($msg);
-        return 1;
+
+    my $pid = open3(undef, $fh_out, $fh_out, ($prog, @$args));
+    while(<$fh_out>) {
+        $log->$loglvl($_);
     }
-    return 0
+    my $exit_code = waitpid($pid,0);
+    return $exit_code >> 8;
 }
 
 1;
