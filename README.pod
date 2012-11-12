@@ -65,4 +65,10 @@ Can be configured to pull from certain branch instead of default
 
 =item libyaml-perl
 
+=item libev-perl
+
+=item libanyevent-perl
+
+=item libanyevent-http-perl
+
 =back
