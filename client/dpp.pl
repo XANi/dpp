@@ -1,5 +1,6 @@
 #!/usr/bin/perl
-use lib '../lib/';              # include local libs
+use FindBin;
+use lib $FindBin::Bin . '/../lib';
 use strict;
 use warnings;
 use Carp qw(cluck croak carp confess);
