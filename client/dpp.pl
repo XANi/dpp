@@ -4,8 +4,12 @@ use strict;
 use warnings;
 use Carp qw(cluck croak carp confess);
 use POSIX qw/strftime/;
+
+use EV;
+use AnyEvent;
+use AnyEvent::HTTP;
+
 use Config::General;
-use LWP::Simple;
 use File::Slurp;
 use YAML;
 use Data::Dumper;
@@ -97,35 +101,59 @@ while (my ($repo, $repo_config) = each ( %{ $cfg->{'repo'} } ) ) {
 my $repover_hash;
 my $repover_hash_old;
 my $last_run=0;
-while ( sleep int($cfg->{'poll_interval'}) ) {
-    my $status;
-    my $run=0;
-    while ( my ($repo_name, $repo) = each (%$repos) ) {
-        $log->info("Checking $repo_name");
-        # TODO not dumb check url
-        my $get = get( $cfg->{'repo'}{$repo_name}{'check_url'} ) or carp ($?) ;
-        my $hash = sha1_hex($get);
-        $log->debug("  H:$hash");
-        if ($hash ne $repo->{'hash'}) {
-            $repo->{'hash'} = $hash;
-            $repo->{'object'}->pull;
-            $repo->{'object'}->checkout( $cfg->{'repo'}{$repo_name}{'branch'} );
-            $run = 1;
-            $status .= "new commit in $repo_name  # ";
+my $finish = AnyEvent->condvar;
+my $events;
+$events->{'SIGTERM'} =
+    AnyEvent->signal (
+        signal => "TERM",
+        cb => sub {
+            $finish->send("Sigterm")
+        });
+
+my $run = 0;
+while ( my ($repo_name, $repo) = each (%$repos) ) {
+    $events->{"repo_checker-$repo_name"} = AnyEvent->timer(
+        after => 1,
+        interval => $cfg->{'poll_interval'},
+        cb => sub {
+            my $url = $cfg->{'repo'}{$repo_name}{'check_url'};
+            $log->info("Checking $repo_name with url $url");
+            http_get $url, sub {
+                my $data = shift;
+                my $headers = shift;
+                my $hash = sha1_hex($data);
+                $log->debug("  H:$hash");
+                if ($hash ne $repo->{'hash'}) {
+                    $log->info("Change in repo $repo_name, scheduling puppet run");
+                    $repo->{'hash'} = $hash;
+                    $repo->{'object'}->pull;
+                    $repo->{'object'}->checkout( $cfg->{'repo'}{$repo_name}{'branch'} );
+                    $run = 1;
+                }
+            };
+        }
+    );
+}
+$events->{'puppet_runner'} = AnyEvent->timer(
+    after => 4,
+    interval => 10,
+    cb => sub {
+        if ($run > 0) {
+            $agent->run_puppet;
+            $run = 0;
+            if ( defined($cfg->{'status_file'}) ) {
+                    open(STATUS, '>', $cfg->{'status_file'});
+                    print STATUS scalar time;
+                    close(STATUS);
+                }
+            $last_run=time();
         }
     }
-    if ($run < 1) {
-        next #nothing to run
-    }
-    $log->debug("DUMMY we will run puppet checks here");
-    $agent->run_puppet;
-    if ( defined($cfg->{'status_file'}) ) {
-        open(STATUS, '>', $cfg->{'status_file'});
-        print STATUS $status;
-        close(STATUS);
-    }
-    $last_run=time();
-}
+);
+
+my $exit_reason = $finish->recv();
+$log->info("Exiting because of <$exit_reason>");
+
 
 sub _log_helper_timestamp() {
     my %a = @_;
