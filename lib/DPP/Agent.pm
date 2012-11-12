@@ -5,6 +5,9 @@ use strict;
 use warnings;
 use Carp qw(cluck croak carp);
 use Data::Dumper;
+use Log::Any qw($log);
+use Symbol qw(gensym);
+use IPC::Open3;
 require Exporter;
 
 our @ISA = qw(Exporter);
@@ -33,9 +36,46 @@ sub new {
     my $class = ref($proto) || $proto;
     my $self = {};
     bless($self, $class);
-    my %cfg = @_;
-    $self->{'cfg'} = \%cfg;
+    my $cfg = shift;
+    $self->{'cfg'} = $cfg;
+    $self->{'cfg'}{'puppet_module_path'} = $self->generate_module_path;
+    my $main_repo;
+    if (defined $cfg->{'manifest_from'} ) {
+        $main_repo =  $cfg->{'manifest_from'};
+    }
+    elsif (defined $cfg->{'use_repos'}[0]) {
+        $main_repo =  $cfg->{'use_repos'}[0];
+    }
+    elsif ( scalar keys %{ $cfg->{'repo'} } == 1 ) {
+        ($main_repo) = keys(%{ $cfg->{'repo'} });
+    }
+    else {
+        croak("If you have more than one repo defined you HAVE to set use_repos with proper order (main one first)");
+    }
+    $cfg->{'puppet_main_repo'}= $cfg->{'repo_dir'} . '/' . $main_repo;
     return $self;
+}
+
+sub run_puppet {
+    my $self = shift;
+    my $out = gensym;
+     $log->debug("Running Puppet");
+     my $pid = open3(undef, $out, $out,'puppet',  'apply', '-v',
+                    '--modulepath=' . $self->{'cfg'}{'puppet_module_path'},
+                    $self->{'cfg'}{'puppet_main_repo'} . '/puppet/manifests/site.pp');
+    while(<$out>) {
+        $log->info($_);
+    }
+    waitpid( $pid, 0 );
+    $log->debug("Puppet run finished");
+}
+sub generate_module_path {
+    my $self = shift;
+    my @puppet_module_path;
+    foreach(@{ $self->{'cfg'}{'use_repos'} }) {
+        push(@puppet_module_path, $self->{'cfg'}{'repo_dir'} . '/' . $_ . '/modules');
+    }
+    return join(':',@puppet_module_path);
 }
 1;
 __END__
