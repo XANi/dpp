@@ -21,6 +21,7 @@ use Log::Any qw($log);
 use Log::Any::Adapter;
 use Log::Dispatch;
 use Log::Dispatch::Screen;
+use Term::ANSIColor qw(color colorstrip);
 
 use DPP::Agent;
 use DPP::VCS::Git;
@@ -66,6 +67,7 @@ $cfg->{'poll_interval'} ||= 60;
 $cfg->{'puppet'}{'start_wait'} ||= 60;
 $cfg->{'puppet'}{'minimum_interval'} ||= 120;
 $cfg->{'puppet'}{'schedule_run'} ||= 3600;
+if( !exists($cfg->{'log'}{'ansicolor'}) ) {$cfg->{'log'}{'ansicolor'} = 1}
 
 if ( ! -e $cfg->{'hiera_dir'} ) {mkpath($cfg->{'hiera_dir'},1,700) or die($!)}
 if ( ! -e $cfg->{'repo_dir'} ) {mkpath($cfg->{'repo_dir'},1,700) or die($!)}
@@ -171,9 +173,30 @@ sub _log_helper_timestamp() {
     my $out;
     my $multiline_mark = '';
     foreach( split(/\n/,$a{'message'}) ) {
-        $out .= strftime('%Y-%m-%dT%H:%M:%S%z',localtime(time)) . ' ' . $a{'level'} . ': ' . $multiline_mark . $_ . "\n";
+        if ( $cfg->{'log'}{'ansicolor'} ) {
+            $out .= color('bright_green') .  strftime('%Y-%m-%dT%H:%M:%S%z',localtime(time)) . color('reset') . ' ' .  &_get_color_by_level($a{'level'}) . ': ' . $multiline_mark . $_ . "\n";
+        } else {
+            $out .= strftime('%Y-%m-%dT%H:%M:%S%z',localtime(time)) . ' ' . $a{'level'} . ': ' . $multiline_mark . colorstrip($_) . "\n";
+        }
         $multiline_mark = '.  '
     }
     return $out
 }
 
+sub _get_color_by_level {
+    my $level = shift;
+    my $color_map = {
+        debug => 'blue',
+        error => 'bright red',
+        warning => 'bright yellow',
+        info => 'green',
+        notice => 'cyan',
+    };
+    my $color;
+    if (defined( $color_map->{$level} )) {
+        $color = $color_map->{$level}
+    } else {
+        $color= 'green';
+    }
+    return color($color) . $level . color('reset');
+}
