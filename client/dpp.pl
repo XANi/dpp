@@ -33,11 +33,12 @@ our $VERSION = '0.01';
 my $yaml = read_file('/etc/dpp.conf');
 my $cfg = Load($yaml) or croak($!);
 
+$cfg->{'log'}{'level'} ||= 'debug';
 my $logger = Log::Dispatch->new();
 $logger->add(
     Log::Dispatch::Screen->new(
         name      => 'screen',
-        min_level => 'debug',
+        min_level => $cfg->{'log'}{'level'},
         callbacks => (\&_log_helper_timestamp),
     )
 );
@@ -127,7 +128,7 @@ while ( my ($repo_name, $repo) = each (%$repos) ) {
                 my $hash = sha1_hex($data);
                 $log->debug("$repo_name  H:$hash");
                 if ($hash ne $repo->{'hash'}) {
-                    $log->info("Change in repo $repo_name, scheduling puppet run");
+                    $log->notice("Change in repo $repo_name, scheduling puppet run");
                     $repo->{'hash'} = $hash;
                     $repo->{'object'}->pull;
                     $repo->{'object'}->checkout( $cfg->{'repo'}{$repo_name}{'branch'} );
@@ -143,7 +144,7 @@ $events->{'puppet_runner'} = AnyEvent->timer(
     cb => sub {
         my $t = time;
         if ($last_run > $t) {
-            $log->err("I think something changed time because last run is in the future, resetting");
+            $log->warn("I think something changed time because last run is in the future, resetting");
             $last_run = $t;
         }
         if ( ( $last_run + $cfg->{'puppet'}{'minimum_interval'} ) > $t ) {
@@ -166,8 +167,7 @@ $events->{'puppet_runner'} = AnyEvent->timer(
 );
 
 my $exit_reason = $finish->recv();
-$log->info("Exiting because of <$exit_reason>");
-
+$log->notice("Exiting because of <$exit_reason>");
 
 sub _log_helper_timestamp() {
     my %a = @_;
