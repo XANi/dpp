@@ -77,6 +77,37 @@ sub generate_module_path {
     }
     return join(':',@puppet_module_path);
 }
+
+sub ensure_link {
+    my $self = shift;
+    my $source = shift;
+    my $target = shift;
+    $source =~ s/\/$//;
+    $target =~ s/\/$//;
+    if (! -e $source) {
+        croak("Link source $source does not exist!");
+    }
+    if (! -e $target) {
+        symlink($source, $target);
+        $log->debug("Hiera symlink $target => $source does not exist => created");
+        return
+    }
+
+    if (-l $target) {
+        my (undef, $source_inode) = stat($source);
+        my (undef, $target_inode) = stat($target);
+        if ($source_inode eq $target_inode) {
+            $log->debug("Hiera symlink $target => $source OK");
+        } else {
+            $log->("Hiera symlink pointing to wrong dir, relinkin $target => $source");
+            unlink($target);
+            symlink($source, $target);
+        }
+    } else {
+        croak ("Can't create hiera symlink, target $target isn't a symlink, remove it and retry");
+    }
+};
+
 1;
 __END__
 # Below is stub documentation for your module. You'd better edit it!
