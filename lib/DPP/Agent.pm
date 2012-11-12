@@ -59,15 +59,15 @@ sub new {
 sub run_puppet {
     my $self = shift;
     my $out = gensym;
-     $log->debug("Running Puppet");
+     $log->notice("Running Puppet");
      my $pid = open3(undef, $out, $out,'puppet',  'apply', '-v',
                     '--modulepath=' . $self->{'cfg'}{'puppet_module_path'},
                     $self->{'cfg'}{'puppet_main_repo'} . '/puppet/manifests/site.pp');
     while(<$out>) {
-        $log->info($_);
+        $log->notice($_);
     }
     waitpid( $pid, 0 );
-    $log->debug("Puppet run finished");
+    $log->notice("Puppet run finished");
 }
 sub generate_module_path {
     my $self = shift;
@@ -89,7 +89,7 @@ sub ensure_link {
     }
     if (! -e $target) {
         symlink($source, $target);
-        $log->debug("Hiera symlink $target => $source does not exist => created");
+        $log->notice("Hiera symlink $target => $source does not exist => created");
         return
     }
 
@@ -97,9 +97,9 @@ sub ensure_link {
         my (undef, $source_inode) = stat($source);
         my (undef, $target_inode) = stat($target);
         if ($source_inode eq $target_inode) {
-            $log->debug("Hiera symlink $target => $source OK");
+            $log->info("Hiera symlink $target => $source OK");
         } else {
-            $log->("Hiera symlink pointing to wrong dir, relinkin $target => $source");
+            $log->notice("Hiera symlink pointing to wrong dir, relinkin $target => $source");
             unlink($target);
             symlink($source, $target);
         }
