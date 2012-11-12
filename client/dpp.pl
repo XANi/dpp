@@ -5,7 +5,6 @@ use warnings;
 use Carp qw(cluck croak carp confess);
 use POSIX qw/strftime/;
 use Config::General;
-use DPP::VCS::Git;
 use LWP::Simple;
 use File::Slurp;
 use YAML;
@@ -18,6 +17,9 @@ use Log::Any qw($log);
 use Log::Any::Adapter;
 use Log::Dispatch;
 use Log::Dispatch::Screen;
+
+use DPP::Agent;
+use DPP::VCS::Git;
 
 
 
@@ -40,7 +42,7 @@ Log::Any::Adapter->set( 'Dispatch', dispatcher => $logger );
 # simple validate of config vars, TODO make better
 my @validate = (
                 'repo',
-			);
+            );
 
 foreach my $cfg_option (@validate) {
     if ( !defined($cfg->{$cfg_option}) ) {
@@ -69,8 +71,7 @@ if ($cfg->{'poll_interval'} < 1) {
 # init
 $log->debug("Config: \n" .  Dumper $cfg);
 
-my $puppet_module_path = &generate_module_path;
-my $puppet_main_repo = $cfg->{'repo_dir'} . '/shared';
+my $agent = DPP::Agent->new($cfg);
 
 my $repos = {};
 while (my ($repo, $repo_config) = each ( %{ $cfg->{'repo'} } ) ) {
@@ -88,9 +89,9 @@ while (my ($repo, $repo_config) = each ( %{ $cfg->{'repo'} } ) ) {
     }
     $repos->{$repo}{'object'} = $p_repo;
     $repos->{$repo}{'hash'} = '';
-	if( defined( $repo_config->{'hiera_dir'} ) ) {
-		&ensure_link($repo_path . '/' . $repo_config->{'hiera_dir'}, $cfg->{'hiera_dir'} . '/' . $repo);
-	}
+    if( defined( $repo_config->{'hiera_dir'} ) ) {
+        &ensure_link($repo_path . '/' . $repo_config->{'hiera_dir'}, $cfg->{'hiera_dir'} . '/' . $repo);
+    }
 }
 # now either repo should be ready or we died
 my $repover_hash;
@@ -117,35 +118,13 @@ while ( sleep int($cfg->{'poll_interval'}) ) {
         next #nothing to run
     }
     $log->debug("DUMMY we will run puppet checks here");
-    &run_puppet;
+    $agent->run_puppet;
     if ( defined($cfg->{'status_file'}) ) {
         open(STATUS, '>', $cfg->{'status_file'});
         print STATUS $status;
         close(STATUS);
     }
     $last_run=time();
-}
-
-sub run_puppet {
-    my $out = gensym;
-    $log->debug("Running Puppet");
-    #        system("puppetd --test --noop --confdir=" . $cfg->{'puppet_repo_dir'});
-    my $pid = open3(undef, $out, $out,'puppet',  'apply', '-v',
-           "--modulepath=$puppet_module_path" ,
-           $puppet_main_repo . '/puppet/manifests/site.pp');
-    while(<$out>) {
-        $log->info($_);
-    }
-    waitpid( $pid, 0 );
-    $log->debug("Puppet run finished");
-}
-
-sub generate_module_path {
-    my @puppet_module_path;
-    foreach(@{ $cfg->{'use_repos'} }) {
-        push(@puppet_module_path, $cfg->{'repo_dir'} . '/' . $_ . '/modules');
-    }
-    return join(':',@puppet_module_path);
 }
 
 sub _log_helper_timestamp() {
