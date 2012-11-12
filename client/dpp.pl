@@ -63,7 +63,9 @@ if (defined($cfg->{'pid_file'})) {
 $cfg->{'repo_dir'} ||= '/var/lib/dpp/repos';
 $cfg->{'hiera_dir'} ||= '/var/lib/dpp/hiera';
 $cfg->{'poll_interval'} ||= 60;
-$cfg->{'on_change_min_wait'} ||= 120;
+$cfg->{'puppet'}{'start_wait'} ||= 60;
+$cfg->{'puppet'}{'minimum_interval'} ||= 120;
+$cfg->{'puppet'}{'schedule_run'} ||= 3600;
 
 if ( ! -e $cfg->{'hiera_dir'} ) {mkpath($cfg->{'hiera_dir'},1,700) or die($!)}
 if ( ! -e $cfg->{'repo_dir'} ) {mkpath($cfg->{'repo_dir'},1,700) or die($!)}
@@ -98,8 +100,6 @@ while (my ($repo, $repo_config) = each ( %{ $cfg->{'repo'} } ) ) {
     }
 }
 # now either repo should be ready or we died
-my $repover_hash;
-my $repover_hash_old;
 my $last_run=0;
 my $finish = AnyEvent->condvar;
 my $events;
@@ -122,7 +122,7 @@ while ( my ($repo_name, $repo) = each (%$repos) ) {
                 my $data = shift;
                 my $headers = shift;
                 my $hash = sha1_hex($data);
-                $log->debug("  H:$hash");
+                $log->debug("$repo_name  H:$hash");
                 if ($hash ne $repo->{'hash'}) {
                     $log->info("Change in repo $repo_name, scheduling puppet run");
                     $repo->{'hash'} = $hash;
@@ -135,9 +135,20 @@ while ( my ($repo_name, $repo) = each (%$repos) ) {
     );
 }
 $events->{'puppet_runner'} = AnyEvent->timer(
-    after => 4,
+    after => $cfg->{'puppet'}{'start_wait'},
     interval => 10,
     cb => sub {
+        my $t = time;
+        if ($last_run > $t) {
+            $log->err("I think something changed time because last run is in the future, resetting");
+            $last_run = $t;
+        }
+        if ( ( $last_run + $cfg->{'puppet'}{'minimum_interval'} ) > $t ) {
+            return;
+        }
+        if ( ( $last_run + 3600 + $cfg->{'puppet'}{'schedule_run'} ) < $t ) {
+            $run = 1;
+        }
         if ($run > 0) {
             $agent->run_puppet;
             $run = 0;
