@@ -11,7 +11,7 @@ use AnyEvent;
 use AnyEvent::HTTP;
 
 use File::Slurp;
-use YAML;
+use YAML::XS;
 use Data::Dumper;
 use Digest::SHA qw(sha1_hex);
 use File::Path qw (mkpath);
