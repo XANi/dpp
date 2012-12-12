@@ -62,12 +62,24 @@ sub run_puppet {
      $log->notice("Running Puppet");
      my $pid = open3(undef, $out, $out,'puppet',  'apply', '-v',
                     '--modulepath=' . $self->{'cfg'}{'puppet_module_path'},
-                    $self->{'cfg'}{'puppet_main_repo'} . '/puppet/manifests/site.pp');
-    while(<$out>) {
-        $log->notice($_);
+                    $self->{'cfg'}{'puppet_main_repo'} . '/puppet/manifests/site.pp') or carp ("Can't start puppet: $!");
+    while (my $line = <$out>) {
+        if ($line =~ /^err/) {
+            $log->err($line);
+        }
+        if ($line =~ /^warn/) {
+            $log->warning($line);
+        }
+        elsif ($line =~ /^notice/) {
+            $log->notice($line);
+        }
+        else {
+            $log->info($line);
+        }
     }
     waitpid( $pid, 0 );
     $log->notice("Puppet run finished");
+    return
 }
 sub generate_module_path {
     my $self = shift;

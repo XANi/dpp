@@ -10,7 +10,6 @@ use EV;
 use AnyEvent;
 use AnyEvent::HTTP;
 
-use Config::General;
 use File::Slurp;
 use YAML;
 use Data::Dumper;
@@ -121,6 +120,7 @@ while ( my ($repo_name, $repo) = each (%$repos) ) {
         interval => $cfg->{'poll_interval'},
         cb => sub {
             my $url = $cfg->{'repo'}{$repo_name}{'check_url'};
+            if ($run > 0) {return;} # puppet is scheduled to run so dont bother with next check
             $log->info("Checking $repo_name with url $url");
             http_get $url, sub {
                 my $data = shift;
@@ -130,9 +130,13 @@ while ( my ($repo_name, $repo) = each (%$repos) ) {
                 if ($hash ne $repo->{'hash'}) {
                     $log->notice("Change in repo $repo_name, scheduling puppet run");
                     $repo->{'hash'} = $hash;
-                    $repo->{'object'}->pull;
-                    $repo->{'object'}->checkout( $cfg->{'repo'}{$repo_name}{'branch'} );
-                    $run = 1;
+                    if ($repo->{'object'}->pull) {
+                        $repo->{'object'}->checkout( $cfg->{'repo'}{$repo_name}{'branch'} );
+                        $run = 1;
+                    } else {
+                        # rerun, ugly hack
+                        $repo->{'hash'} .= '_pull_failed';
+                    }
                 }
             };
         }
