@@ -99,9 +99,11 @@ sub pull {
         'notice',
     );
     if ($?) {
-        carp("git pull terminated with error");
-        return $? / 256;
+        my $err = $? / 256;
+        $log->err("git pull terminated with error code $err");
+        return
     }
+    return 1
 }
 
 sub fetch {
