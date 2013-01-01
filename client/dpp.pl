@@ -6,9 +6,11 @@ use warnings;
 use Carp qw(cluck croak carp confess);
 use POSIX qw/strftime/;
 
-use EV;
+
 use AnyEvent;
 use AnyEvent::HTTP;
+use IO::Async::Loop;
+my $loop = new IO::Async::Loop;
 
 use File::Slurp;
 use YAML::XS;
@@ -170,6 +172,35 @@ $events->{'puppet_runner'} = AnyEvent->timer(
     }
 );
 
+use Net::Async::WebSocket::Client;
+$events->{'websocket'} = Net::Async::WebSocket::Client->new(
+    on_frame => sub {
+        my ( $self, $frame ) = @_;
+        $log->warn("WS: $frame");
+    },
+);
+$loop->add($events->{'websocket'});
+
+$events->{'websocket'}->connect(
+    host    => '127.0.0.1',
+    service => 3000,
+    url     => "ws://localhost:3000/ws",
+
+    on_connected => sub {
+        $events->{'websocket'}->send_frame("Hello, world!\n");
+        $events->{'websocket_timer'} = AnyEvent->timer(
+            after => 1,
+            interval => 2,
+            cb => sub {
+                $events->{'websocket'}->send_frame("ping\n");
+            },
+        );
+    },
+
+    on_connect_error => sub { die "Cannot connect - $_[-1]" },
+    on_resolve_error => sub { die "Cannot resolve - $_[-1]" },
+);
+
 my $exit_reason = $finish->recv();
 $log->notice("Exiting because of <$exit_reason>");
 
@@ -192,8 +223,8 @@ sub _get_color_by_level {
     my $level = shift;
     my $color_map = {
         debug => 'blue',
-        error => 'bright red',
-        warning => 'bright yellow',
+        error => 'bold red',
+        warning => 'bold yellow',
         info => 'green',
         notice => 'cyan',
     };

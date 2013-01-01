@@ -6,3 +6,4 @@ DEADJOE
 Makefile.old
 blib/*
 client/dpp.conf
+*.log
