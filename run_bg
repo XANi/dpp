@@ -1,0 +1,5 @@
+#!/bin/bash
+cd /usr/src/dpp/client
+/usr/bin/screen -dmS dpp ./dpp.pl &
+
+
