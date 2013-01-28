@@ -192,8 +192,8 @@ sub _get_color_by_level {
     my $level = shift;
     my $color_map = {
         debug => 'blue',
-        error => 'bright red',
-        warning => 'bright yellow',
+        error => 'bold red',
+        warning => 'bold yellow',
         info => 'green',
         notice => 'cyan',
     };
