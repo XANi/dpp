@@ -149,16 +149,20 @@ $events->{'puppet_runner'} = AnyEvent->timer(
     after => $cfg->{'puppet'}{'start_wait'},
     interval => 10,
     cb => sub {
-        my $t = shift;
+        my $t = time;
         if ( ( $last_run + 3600 + $cfg->{'puppet'}{'schedule_run'} ) < $t ) {
-            $log->warn("No commits in a while, periodic puppet run scheduled");
+            $log->notice("No commits in a while, periodic puppet run scheduled");
             &schedule_puppet;
+            return;
         }
         if ( $delayed_run && ( ( $last_run + $cfg->{'puppet'}{'minimum_interval'} ) > $t ) ) {
+            $log->debug("Waiting for minimal interval");
             return# still waiting for minimum interval
         }
-        if ($delayed_run > 0) {
+        if ($delayed_run) {
+            $log->debug("Running delayed run");
             &schedule_run;
+            return;
         }
     }
 );
@@ -186,7 +190,7 @@ sub schedule_run {
         return;
     }
     if ( ( $last_run + $cfg->{'puppet'}{'minimum_interval'} ) > $t ) {
-        $log->info("Below minimum interval, delaying");
+        $log->notice("Below minimum interval, delaying");
         $delayed_run = 1;
         return
     }
@@ -194,13 +198,13 @@ sub schedule_run {
 }
 
 sub run_puppet {
-    $log->warn("Running from callback");
     if ( defined($cfg->{'status_file'}) ) {
         open(STATUS, '>', $cfg->{'status_file'});
         print STATUS scalar time;
         close(STATUS);
     }
     $agent->run_puppet;
+    $delayed_run = 0;
     $last_run=time();
     return;
 }
