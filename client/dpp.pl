@@ -119,7 +119,7 @@ $events->{'SIGTERM'} =
 my $delayed_run = 0;
 while ( my ($repo_name, $repo) = each (%$repos) ) {
     $events->{"repo_checker-$repo_name"} = AnyEvent->timer(
-        after => 1,
+        after => 5,
         interval => $cfg->{'poll_interval'},
         cb => sub {
             my $url = $cfg->{'repo'}{$repo_name}{'check_url'};
@@ -166,6 +166,9 @@ $events->{'puppet_runner'} = AnyEvent->timer(
         }
     }
 );
+
+# run at start
+&schedule_run;
 
 my $exit_reason = $finish->recv();
 $log->notice("Exiting because of <$exit_reason>");

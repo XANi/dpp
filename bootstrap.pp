@@ -1,6 +1,7 @@
 package { [
            'libev-perl',
            'libfile-slurp-perl',
+           'libdigest-sha-perl',
            'libyaml-libyaml-perl',
            'libanyevent-perl',
            'libanyevent-http-perl',
