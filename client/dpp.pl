@@ -105,6 +105,9 @@ while (my ($repo, $repo_config) = each ( %{ $cfg->{'repo'} } ) ) {
 # now either repo should be ready or we died
 my $last_run=0;
 my $finish = AnyEvent->condvar;
+my $run_puppet;
+&arm_puppet;
+
 my $events;
 $events->{'SIGTERM'} =
     AnyEvent->signal (
@@ -113,14 +116,14 @@ $events->{'SIGTERM'} =
             $finish->send("Sigterm")
         });
 
-my $run = 0;
+my $delayed_run = 0;
 while ( my ($repo_name, $repo) = each (%$repos) ) {
     $events->{"repo_checker-$repo_name"} = AnyEvent->timer(
         after => 1,
         interval => $cfg->{'poll_interval'},
         cb => sub {
             my $url = $cfg->{'repo'}{$repo_name}{'check_url'};
-            if ($run > 0) {return;} # puppet is scheduled to run so dont bother with next check
+            if ($delayed_run > 0) {return;} # puppet is scheduled to run so dont bother with next check
             $log->info("Checking $repo_name with url $url");
             http_get $url, sub {
                 my $data = shift;
@@ -132,7 +135,7 @@ while ( my ($repo_name, $repo) = each (%$repos) ) {
                     $repo->{'hash'} = $hash;
                     if ($repo->{'object'}->pull) {
                         $repo->{'object'}->checkout( $cfg->{'repo'}{$repo_name}{'branch'} );
-                        $run = 1;
+                        &schedule_run;
                     } else {
                         # rerun, ugly hack
                         $repo->{'hash'} .= '_pull_failed';
@@ -146,32 +149,61 @@ $events->{'puppet_runner'} = AnyEvent->timer(
     after => $cfg->{'puppet'}{'start_wait'},
     interval => 10,
     cb => sub {
-        my $t = time;
-        if ($last_run > $t) {
-            $log->warn("I think something changed time because last run is in the future, resetting");
-            $last_run = $t;
-        }
-        if ( ( $last_run + $cfg->{'puppet'}{'minimum_interval'} ) > $t ) {
-            return;
-        }
+        my $t = shift;
         if ( ( $last_run + 3600 + $cfg->{'puppet'}{'schedule_run'} ) < $t ) {
-            $run = 1;
+            $log->warn("No commits in a while, periodic puppet run scheduled");
+            &schedule_puppet;
         }
-        if ($run > 0) {
-            $agent->run_puppet;
-            $run = 0;
-            if ( defined($cfg->{'status_file'}) ) {
-                    open(STATUS, '>', $cfg->{'status_file'});
-                    print STATUS scalar time;
-                    close(STATUS);
-                }
-            $last_run=time();
+        if ( $delayed_run && ( ( $last_run + $cfg->{'puppet'}{'minimum_interval'} ) > $t ) ) {
+            return# still waiting for minimum interval
+        }
+        if ($delayed_run > 0) {
+            &schedule_run;
         }
     }
 );
 
 my $exit_reason = $finish->recv();
 $log->notice("Exiting because of <$exit_reason>");
+
+sub arm_puppet {
+    undef $run_puppet;
+    $run_puppet = AnyEvent->condvar;
+    $run_puppet->cb(
+        sub {
+            &arm_puppet;
+            &run_puppet;
+        }
+    );
+}
+
+sub schedule_run {
+    my $t = time;
+    $log->notice("Scheduling puppet");
+    if ($last_run > $t) {
+        $log->warn("I think something changed time because last run is in the future, resetting");
+        $last_run = $t;
+        return;
+    }
+    if ( ( $last_run + $cfg->{'puppet'}{'minimum_interval'} ) > $t ) {
+        $log->info("Below minimum interval, delaying");
+        $delayed_run = 1;
+        return
+    }
+    $run_puppet->send;
+}
+
+sub run_puppet {
+    $log->warn("Running from callback");
+    if ( defined($cfg->{'status_file'}) ) {
+        open(STATUS, '>', $cfg->{'status_file'});
+        print STATUS scalar time;
+        close(STATUS);
+    }
+    $agent->run_puppet;
+    $last_run=time();
+    return;
+}
 
 sub _log_helper_timestamp() {
     my %a = @_;
