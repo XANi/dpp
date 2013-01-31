@@ -135,7 +135,19 @@ while ( my ($repo_name, $repo) = each (%$repos) ) {
                     $repo->{'hash'} = $hash;
                     if ($repo->{'object'}->pull) {
                         $repo->{'object'}->checkout( $cfg->{'repo'}{$repo_name}{'branch'} );
-                        &schedule_run;
+                        if (!defined $events->{'delayed_puppet_run'} ) {
+                            $events->{'delayed_puppet_run'} = AnyEvent->timer(
+                                after => 3,
+                                cb => sub {
+                                    delete  $events->{'delayed_puppet_run'};
+                                    $log->warn("Delaying run by 3 seconds to allow other checks to finish");
+                                    &schedule_run;
+                                }
+                            );
+                        }
+                        else {
+                            $log->warn("Other run in progress, not scheduling another one");
+                        }
                     } else {
                         # rerun, ugly hack
                         $repo->{'hash'} .= '_pull_failed';
