@@ -1,4 +1,4 @@
-package DPP::Server;
+package DPP::Manager;
 use Mojo::Base 'Mojolicious';
 
 # This method will run once at server start
