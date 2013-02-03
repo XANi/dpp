@@ -45,8 +45,8 @@ sub startup {
     my $r = $self->routes;
 
     # connect to DB
-    my $db = DPP::DB->new($cfg->{'db'});
-    $cfg->{'dbi'} = $db->dbh;
+    $self->{'db'} = DPP::DB->new($cfg->{'db'});
+
     $self->app->config($cfg);
 
     # Normal route to controller
@@ -54,7 +54,7 @@ sub startup {
                 my $self = shift;
                 $self->render(text => "work");
             });
-    $r->any('/report')->to('report#report');
+    $r->any('/report')->to('report#post_report');
 
 
 }

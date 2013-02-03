@@ -12,6 +12,7 @@ use AnyEvent::HTTP;
 
 use File::Slurp;
 use YAML::XS;
+use JSON::XS;
 use Data::Dumper;
 use Digest::SHA qw(sha1_hex);
 use File::Path qw (mkpath);
@@ -25,7 +26,8 @@ use Term::ANSIColor qw(color colorstrip);
 
 use DPP::Agent;
 use DPP::VCS::Git;
-
+use Sys::Hostname;
+my $hostname = hostname;
 
 
 our $VERSION = '0.01';
@@ -182,6 +184,8 @@ $events->{'puppet_runner'} = AnyEvent->timer(
 # run at start
 &schedule_run;
 
+
+
 my $exit_reason = $finish->recv();
 $log->notice("Exiting because of <$exit_reason>");
 
@@ -218,11 +222,39 @@ sub run_puppet {
         print STATUS scalar time;
         close(STATUS);
     }
-    $agent->run_puppet;
+    my $failed = $agent->run_puppet;
     $delayed_run = 0;
     $last_run=time();
+    if (defined ($cfg->{'manager_url'}) ) {
+        &send_report($failed);
+    }
     return;
 }
+
+sub send_report {
+    my $y = read_file('/var/lib/puppet/state/last_run_summary.yaml');
+    my $report;
+    eval {
+        $report = Load($y);
+    };
+    if($?) {
+        $log->err("Invalid YAML in /var/lib/puppet/state/last_run_summary.yaml");
+        return;
+    }
+    $report->{'hostname'} = $hostname;
+    http_post $cfg->{'manager_url'} . '/report',
+        encode_json($report),
+        headers => {
+            'Content-encoding' => 'application/json',
+        },
+        timeout => 30,
+        sub {
+            my ($body, $hdr) = @_;
+            print "got $body";
+        };
+    return;
+}
+
 
 sub _log_helper_timestamp() {
     my %a = @_;

@@ -3,6 +3,7 @@ use common::sense;
 use Carp qw(croak carp cluck confess);
 use Data::Dumper;
 use DBI;
+use Log::Any qw($log);
 sub new {
     my $proto = shift;
     my $cfg;
@@ -42,10 +43,7 @@ sub init_sqlite {
     my $check_config_table = $self->{'dbh'}->prepare(q{SELECT * FROM sqlite_master WHERE name = 'config'});
     $check_config_table->execute();
     my $t = $check_config_table->fetchrow_arrayref;
-    print "Checking DB\n";
-    print Dumper ($t);
     if (!defined($t)) {
-        print "Creating DB\n";
         $self->{'dbh'}->do(q{
             CREATE TABLE hosts (
                 hostname TEXT,
@@ -55,7 +53,6 @@ sub init_sqlite {
                 total_time REAL,
                 resource_total INTEGER,
                 resource_changed INTEGER,
-                resource_skipped INTEGER,
                 resource_failed INTEGER
              )
         }) or croak("Cant create table hosts:" . $DBI::errstr);
@@ -68,4 +65,68 @@ sub init_sqlite {
         $self->{'dbh'}->do(q{ INSERT INTO config(key, val) VALUES('version','0.0.1')}) or croak($DBI::errstr);;
     }
 }
+
+sub add_report {
+    my $self   = shift;
+    my $report = shift;
+    if (   !defined( $report->{'version'}{'config'} )
+        || !defined( $report->{'time'}{'config_retrieval'} )
+        || !defined( $report->{'time'}{'total'} )
+        || !defined( $report->{'time'}{'last_run'} )
+        || !defined( $report->{'hostname'} )
+        || !defined( $report->{'resources'}{'total'} )
+        || !defined( $report->{'resources'}{'changed'} )
+        || !defined( $report->{'resources'}{'failed'} ) )
+    {
+        $log->warn("Bad report received, ignoring");
+        print "BAD REPORT\n";
+        return
+    }
+    print "ADDING REPORT\n";
+    my $find_host = $self->{'dbh'}->prepare(q{SELECT * FROM hosts WHERE hostname = ?});
+    $find_host->execute( $report->{'hostname'} );
+    my $update = $find_host->fetchrow_arrayref;
+    my $query;
+    if ( defined($update) ) {
+        print "UPDATE REPORT\n";
+        $query = $self->{'dbh'}->prepare(q{
+            UPDATE hosts
+            SET
+                last_run = ?,
+                config_version = ?,
+                config_retrieval_time = ?,
+                total_time = ?,
+                resource_total = ?,
+                resource_changed = ?,
+                resource_failed = ?
+            WHERE hostname = ?
+        });
+    }
+    else {
+        print "ADD REPORT\n";
+        $query = $self->{'dbh'}->prepare(q{
+            INSERT INTO hosts(
+                last_run,
+                config_version,
+                config_retrieval_time,
+                total_time,
+                resource_total,
+                resource_changed,
+                resource_failed,
+                hostname)
+            VALUES (?, ?, ?, ?, ?, ?, ?,?)
+         })
+    }
+    $query->execute(
+        $report->{'time'}{'last_run'},
+        $report->{'version'}{'config'},
+        $report->{'time'}{'config_retrieval'},
+        $report->{'time'}{'total'},
+        $report->{'resources'}{'total'},
+        $report->{'resources'}{'changed'},
+        $report->{'resources'}{'failed'},
+        $report->{'hostname'}
+    );
+}
+
 1;
