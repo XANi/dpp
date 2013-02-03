@@ -8,4 +8,4 @@ use lib "$FindBin::Bin/../lib";
 
 # Start commands for application
 require Mojolicious::Commands;
-Mojolicious::Commands->start_app('DPP::Server');
+Mojolicious::Commands->start_app('DPP::Manager');
