@@ -26,8 +26,9 @@ use Term::ANSIColor qw(color colorstrip);
 
 use DPP::Agent;
 use DPP::VCS::Git;
-use Sys::Hostname;
-my $hostname = hostname;
+use Net::Domain qw(hostname hostfqdn hostdomain domainname);
+
+my $hostname = hostfqdn || hostname || 'no-hostname-wtf';
 
 
 our $VERSION = '0.01';

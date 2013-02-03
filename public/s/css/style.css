@@ -37,7 +37,8 @@ a:hover {
     border-left: solid 2px #447744;
     border-right: solid 2px #447744;
 }
-#container {
+
+#content {
     background:#0B0B0B;
     position: absolute;
     min-height: 90%;
@@ -45,6 +46,7 @@ a:hover {
     max-width: 940px;
     width: 100%;
 }
+/*
 #header {
     align: center;
     margin: 10px;
@@ -65,7 +67,7 @@ a:hover {
     padding-top: 10px;
     padding-bottom: 10px;
     border: solid 2px #447744;
-    vertical-align:text-top;*/
+    vertical-align:text-top;
 }
 #sidebar {
     max-width: 360px;
@@ -87,3 +89,4 @@ a:hover {
 #title h2{
     font-size:12px;
 }
+*/

@@ -1,2 +1,57 @@
 <div id="content">
+<table id="status">
+    <thead>
+        <tr>
+            <th class=host>Host</th>
+            <th class=time>Last update</th>
+            <th class=resources>Resources changed/failed/total</th>
+            <th class=time>Compilation time</th>
+            <th class=time>Total time</th>
+            <th class=time>Config version</th>
+        </tr>
+    </thead>
+    <tbody>
+    </tbody>
+</table>
+<form>
+  <input type="button" id="refreshStatus" name="btnSubmit" value="Refresh">
+</form>
+<script type="text/javascript">
+var statusTable = $('#status').dataTable( {
+    "bProcessing": true,
+    "bJQueryUI": true,
+    "sAjaxSource": '/status',
+    "bPaginate": false,
+    "bLengthChange": false,
+    "bFilter": true,
+    "bSort": true,
+    "aaSorting": [[0, "asc"]],
+    "bInfo": false,
+    "bAutoWidth": false,
+    "bServerSide": false,
+    "fnServerData": function ( sSource, aoData, fnCallback ) {
+        $.ajax( {
+            headers: {
+                Accept : "application/json",
+            },
+            "dataType": 'json',
+            "type": "GET",
+            "url": sSource,
+            "data": 'txtId=' + $("txtId").val(),
+            "success": fnCallback
+        } );
+    },
+    "fnRowCallback":  function( nRow, aData, iDisplayIndex, iDisplayIndexFull ) {
+        $('td:eq(1)', nRow).html( time_diff( Math.round((new Date()).getTime() / 1000), aData[1]));
+        $('td:eq(1)', nRow).addClass('time');
+    }
+} );
+$("#refreshStatus").click(function(){
+    statusTable.fnReloadAjax();
+});
+setInterval(function() {
+    // Do something every 2 seconds
+    statusTable.fnReloadAjax();
+}, 60000);
+</script>
 </div>

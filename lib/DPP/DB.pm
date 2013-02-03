@@ -46,6 +46,7 @@ sub init_sqlite {
     if (!defined($t)) {
         $self->{'dbh'}->do(q{
             CREATE TABLE hosts (
+                ts INTEGER,
                 hostname TEXT,
                 last_run INTEGER,
                 config_version TEXT,
@@ -64,6 +65,19 @@ sub init_sqlite {
         }) or croak("Cant create table config:" . $DBI::errstr);
         $self->{'dbh'}->do(q{ INSERT INTO config(key, val) VALUES('version','0.0.1')}) or croak($DBI::errstr);;
     }
+}
+
+sub get_report_summary {
+    my $self = shift;
+    my $report_data = $self->{'dbh'}->prepare('SELECT * FROM hosts');
+#    $report_data->execute( scalar time - (3600 * 24 * 7) );
+    $report_data->execute();
+    my $report = [];
+    while(my $row = $report_data->fetchrow_hashref) {
+        push @$report, $row;
+    }
+    print Dumper $report;
+    return $report;
 }
 
 sub add_report {
@@ -92,6 +106,7 @@ sub add_report {
         $query = $self->{'dbh'}->prepare(q{
             UPDATE hosts
             SET
+                ts = ?,
                 last_run = ?,
                 config_version = ?,
                 config_retrieval_time = ?,
@@ -106,6 +121,7 @@ sub add_report {
         print "ADD REPORT\n";
         $query = $self->{'dbh'}->prepare(q{
             INSERT INTO hosts(
+                ts,
                 last_run,
                 config_version,
                 config_retrieval_time,
@@ -114,10 +130,11 @@ sub add_report {
                 resource_changed,
                 resource_failed,
                 hostname)
-            VALUES (?, ?, ?, ?, ?, ?, ?,?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)
          })
     }
     $query->execute(
+        scalar time(),
         $report->{'time'}{'last_run'},
         $report->{'version'}{'config'},
         $report->{'time'}{'config_retrieval'},

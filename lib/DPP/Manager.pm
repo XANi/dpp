@@ -55,8 +55,7 @@ sub startup {
                 $self->render(text => "work");
             });
     $r->any('/report')->to('report#post_report');
-
-
+    $r->any('/status')->to('report#get_summary');
 }
 
 1;

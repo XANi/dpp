@@ -17,4 +17,28 @@ sub post_report {
     }
 };
 
+
+sub get_summary {
+    my $self = shift;
+    my $data = $self->app->{'db'}->get_report_summary();
+    my $report = [];
+    foreach my $host (@$data) {
+        my $row = [];
+        push @$row, $host->{'hostname'};
+        push @$row, $host->{'last_run'};
+        push @$row, $host->{'resource_changed'} . '/' . $host->{'resource_failed'} . '/' . $host->{'resource_total'};
+        push @$row, $host->{'config_retrieval_time'};
+        push @$row, $host->{'total_time'};
+        push @$row, $host->{'config_version'};
+        push @$report, $row;
+    }
+    print "ready\n";
+    $self->respond_to(
+        json => {json => {aaData => $report}},
+        txt  => {template => 'index'},
+        html => {template => 'index'},
+    );
+}
+
+
 1;
