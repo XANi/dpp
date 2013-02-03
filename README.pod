@@ -49,6 +49,8 @@ It can download multiple repos and automatically construct module path for puppe
 
 Can be configured to pull from certain branch instead of default
 
+=back
+
 =head2 Reqired packages:
 
 =over 4
