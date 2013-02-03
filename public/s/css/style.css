@@ -1,0 +1,89 @@
+body {
+    background: #000000;
+    font-family: sans-serif;
+    font-size: 11px;
+    text-align: justify;
+    color: #44aa44;
+}
+
+h1 {
+}
+
+h2, h3 {
+    margin-top: 0px;
+}
+
+h4, h5, h6 {
+}
+
+p, ol, ul, dl, blockquote {
+}
+
+a {
+    color: #ABABAB;
+}
+
+a:hover {
+    text-decoration: none;
+    color: #787878;
+}
+
+/* layout */
+#page {
+    max-width: 960px;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    border-left: solid 2px #447744;
+    border-right: solid 2px #447744;
+}
+#container {
+    background:#0B0B0B;
+    position: absolute;
+    min-height: 90%;
+    height: auto;
+    max-width: 940px;
+    width: 100%;
+}
+#header {
+    align: center;
+    margin: 10px;
+    padding: 10px;
+    border: solid 2px #447744;
+    height:70px;
+}
+#box {
+    clear:both;
+}
+#content {
+    max-width: 580px;
+    width: 70%;
+    float: left;
+    text-align: justify;
+    margin: 10px;
+    padding-left: 10px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    border: solid 2px #447744;
+    vertical-align:text-top;*/
+}
+#sidebar {
+    max-width: 360px;
+    float: right;
+    width: 30%;
+    margin: 10px;
+    padding: 10px;
+    border: solid 2px #447744;
+}
+#footer {
+    width:960px;height: 40px;margin-top:10px;text-align: right;color: #CCC;font-size: 12px;clear: both;
+}
+#title {
+    float:left;margin-left:10px;
+}
+#title h1 {
+    font-size:36px;
+}
+#title h2{
+    font-size:12px;
+}
