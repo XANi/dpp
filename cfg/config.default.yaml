@@ -1,3 +1,3 @@
 ---
 db:
-    path: dbi:SQLite:dbname=/tmp/sqlite
+    path: dbi:SQLite:dbname=/tmp/sqlite.sqlite

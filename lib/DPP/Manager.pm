@@ -3,6 +3,7 @@ use Mojo::Base 'Mojolicious';
 use YAML::XS;
 use File::Slurp;
 use Carp qw(croak carp cluck confess);
+use DPP::DB;
 
 # This method will run once at server start
 sub startup {
@@ -42,6 +43,11 @@ sub startup {
     $self->secret( $cfg->{'secret'} || rand(1000000000000000) );
     # Router
     my $r = $self->routes;
+
+    # connect to DB
+    my $db = DPP::DB->new($cfg->{'db'});
+    $cfg->{'dbi'} = $db->dbh;
+    $self->app->config($cfg);
 
     # Normal route to controller
     $r->get('/' => sub {
