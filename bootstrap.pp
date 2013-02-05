@@ -3,6 +3,7 @@ package { [
            'libfile-slurp-perl',
            'libdigest-sha-perl',
            'libyaml-libyaml-perl',
+           'libjson-xs-perl',
            'libanyevent-perl',
            'libanyevent-http-perl',
            'liblog-any-perl',
