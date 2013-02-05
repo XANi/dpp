@@ -70,11 +70,8 @@ sub run_puppet {
         if ($line =~ /^warn/) {
             $log->warning($line);
         }
-        elsif ($line =~ /^notice/) {
-            $log->notice($line);
-        }
         else {
-            $log->info($line);
+            $log->notice($line);
         }
     }
     waitpid( $pid, 0 );
