@@ -12,7 +12,10 @@ use AnyEvent::HTTP;
 
 use File::Slurp;
 use YAML::XS;
+<<<<<<< HEAD
+=======
 use JSON::XS;
+>>>>>>> 8bdf810df3987087397a57937842e0389c9d7b04
 use Data::Dumper;
 use Digest::SHA qw(sha1_hex);
 use File::Path qw (mkpath);
@@ -26,9 +29,13 @@ use Term::ANSIColor qw(color colorstrip);
 
 use DPP::Agent;
 use DPP::VCS::Git;
+<<<<<<< HEAD
+
+=======
 use Net::Domain qw(hostname hostfqdn hostdomain domainname);
 
 my $hostname = hostfqdn || hostname || 'no-hostname-wtf';
+>>>>>>> 8bdf810df3987087397a57937842e0389c9d7b04
 
 
 our $VERSION = '0.01';
@@ -185,6 +192,11 @@ $events->{'puppet_runner'} = AnyEvent->timer(
 # run at start
 &schedule_run;
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 8bdf810df3987087397a57937842e0389c9d7b04
 my $exit_reason = $finish->recv();
 $log->notice("Exiting because of <$exit_reason>");
 
@@ -221,6 +233,14 @@ sub run_puppet {
         print STATUS scalar time;
         close(STATUS);
     }
+<<<<<<< HEAD
+    $agent->run_puppet;
+    $delayed_run = 0;
+    $last_run=time();
+    return;
+}
+
+=======
     my $failed = $agent->run_puppet;
     $delayed_run = 0;
     $last_run=time();
@@ -254,6 +274,8 @@ sub send_report {
     return;
 }
 
+
+>>>>>>> 8bdf810df3987087397a57937842e0389c9d7b04
 sub _log_helper_timestamp() {
     my %a = @_;
     my $out;

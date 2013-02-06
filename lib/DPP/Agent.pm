@@ -70,16 +70,20 @@ sub run_puppet {
         if ($line =~ /^warn/) {
             $log->warning($line);
         }
-        elsif ($line =~ /^notice/) {
+        else {
             $log->notice($line);
         }
-        else {
-            $log->info($line);
-        }
+
     }
     waitpid( $pid, 0 );
+    my $exit_value = $? >> 8;
     $log->notice("Puppet run finished");
-    return
+    if($exit_value > 0) {
+        return;
+    }
+    else {
+        return 1;
+    }
 }
 sub generate_module_path {
     my $self = shift;

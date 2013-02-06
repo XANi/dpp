@@ -1,0 +1,25 @@
+[%- # workaround for mojlicious not passing 'layout' to stash -%]
+[%- layout = 'main' -%]
+<!doctype html>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>[% title %]</title>
+<link rel="stylesheet" type="text/css" media="screen" href="/s/css/style.css" />'
+<link rel="stylesheet" type="text/css" href="/s/css/trontastic/jquery-ui-1.10.0.custom.css" />
+<link rel="alternate" type="application/atom+xml" title="Atom" href="/blog/feed" />
+<script type="text/javascript" src="/s/js/jquery-1.9.0.js"></script>
+<script type="text/javascript" src="/s/js/jquery-ui-1.10.0.custom.js"></script>
+<script type="text/javascript" src="/s/js/jquery.dataTables-1.9.4.min.js"></script>
+<script type="text/javascript" src="/s/js/jquery.dataTables.fnReloadAjax.js"></script>
+<script type="text/javascript" src="/s/js/lib.js"></script>
+</head>
+<body>
+<div id="page">
+<!-- content -->
+[% c.content %]
+<!-- sidebar -->
+</div>
+</body>
+</html>
+[% IF debug %]
+[% INCLUDE "layouts/$layout/debug.tt" %]
+[% END %]

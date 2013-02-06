@@ -8,4 +8,5 @@ WriteMakefile(
     PREREQ_PM         => {}, # e.g., Module::Name => 1.1
     EXE_FILES => [ 'client/dpp.pl'],
     AUTHOR         => 'Mariusz Gronczewski <xani@devrandom.pl>',
+    test      => {TESTS => 't/*.t'}
 );
