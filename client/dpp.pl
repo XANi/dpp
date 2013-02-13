@@ -112,12 +112,21 @@ my $run_puppet;
 &arm_puppet;
 
 my $events;
-$events->{'SIGTERM'} =
-    AnyEvent->signal (
-        signal => "TERM",
-        cb => sub {
-            $finish->send("Sigterm")
-        });
+$events->{'SIGTERM'} = AnyEvent->signal (
+    signal => 'TERM',
+    cb => sub {
+        $finish->send('Sigterm')
+    }
+);
+
+$events->{'SIGUSR1'} = AnyEvent->signal(
+    signal => 'USR1',
+    cb => sub {
+        $log->notice("Received SIGUSR1, scheduling run");
+        &schedule_run,
+    },
+);
+
 
 my $delayed_run = 0;
 while ( my ($repo_name, $repo) = each (%$repos) ) {
