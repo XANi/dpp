@@ -249,7 +249,17 @@ sub send_report {
         timeout => 30,
         sub {
             my ($body, $hdr) = @_;
-            print "got $body";
+            if ($hdr->{Status} =~ /^2/) {
+                $log->notice("Successfuly sent report");
+            }
+            else {
+                my $errmsg = "Error!\n";
+                if (!defined($body) || $body =~ /^\s*$/) {
+                    $errmsg .= "Received empty body!\n";
+                }
+                $errmsg .= "Headers:" . Dump ($hdr);
+                $log->error($errmsg);
+            }
         };
     return;
 }
