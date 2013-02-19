@@ -123,6 +123,7 @@ $events->{'SIGUSR1'} = AnyEvent->signal(
     signal => 'USR1',
     cb => sub {
         $log->notice("Received SIGUSR1, scheduling run");
+        $last_run=0;
         &schedule_run,
     },
 );
