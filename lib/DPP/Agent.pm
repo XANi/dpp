@@ -89,7 +89,7 @@ sub generate_module_path {
     my $self = shift;
     my @puppet_module_path;
     foreach(@{ $self->{'cfg'}{'use_repos'} }) {
-        push(@puppet_module_path, $self->{'cfg'}{'repo_dir'} . '/' . $_ . '/modules');
+        push(@puppet_module_path, $self->{'cfg'}{'repo_dir'} . '/' . $_ . '/puppet/modules');
     }
     return join(':',@puppet_module_path);
 }
