@@ -15,7 +15,7 @@ use YAML::XS;
 use JSON::XS;
 use Data::Dumper;
 use Digest::SHA qw(sha1_hex);
-use File::Path qw (mkpath);
+use File::Path qw (make_path);
 use Symbol qw(gensym);
 use IPC::Open3;
 use Log::Any qw($log);
@@ -34,7 +34,6 @@ my $hostname = hostfqdn || hostname || 'no-hostname-wtf';
 our $VERSION = '0.01';
 my $yaml = read_file('/etc/dpp.conf');
 my $cfg = Load($yaml) or croak($!);
-
 $cfg->{'log'}{'level'} ||= 'debug';
 my $logger = Log::Dispatch->new();
 $logger->add(
@@ -73,8 +72,8 @@ $cfg->{'puppet'}{'minimum_interval'} ||= 120;
 $cfg->{'puppet'}{'schedule_run'} ||= 3600;
 if( !exists($cfg->{'log'}{'ansicolor'}) ) {$cfg->{'log'}{'ansicolor'} = 1}
 
-if ( ! -e $cfg->{'hiera_dir'} ) {mkpath($cfg->{'hiera_dir'},1,700) or die($!)}
-if ( ! -e $cfg->{'repo_dir'} ) {mkpath($cfg->{'repo_dir'},1,700) or die($!)}
+if ( ! -e $cfg->{'hiera_dir'} ) {make_path($cfg->{'hiera_dir'},1,700) or die($!)}
+if ( ! -e $cfg->{'repo_dir'} ) {make_path($cfg->{'repo_dir'},1,700) or die($!)}
 
 
 if ($cfg->{'poll_interval'} < 1) {
@@ -91,12 +90,24 @@ while (my ($repo, $repo_config) = each ( %{ $cfg->{'repo'} } ) ) {
     if (!defined($repo_config->{'force'})) {
         $repo_config->{'force'}=0;
     }
+    $repo_config->{'gpg'} ||= undef;
     my $p_repo = DPP::VCS::Git->new(
         git_dir => $repo_path,
-        force => $repo_config->{'force'}
+        force => $repo_config->{'force'},
+        gpg   => $repo_config->{'gpg'},
     );
-    if ( !$p_repo->validate() ) {
-        $p_repo->create($repo_config->{'pull_url'});
+    $repo_config->{'branch'} ||= 'master';
+
+    if ( $p_repo->validate() ) {
+        $p_repo->fetch();
+    } else {
+        $p_repo->init($repo_config->{'pull_url'});
+        $p_repo->fetch();
+        if ($p_repo->verify_commit('remotes/origin/'. $repo_config->{'branch'} ) ) {
+            $p_repo->checkout('remotes/origin/'.$repo_config->{'branch'});
+        } else {
+            $log->error("Validation of repo $repo failed");
+        }
         $p_repo->validate() or croak("validate of dpp_puppet repo failed after cloning from " . $repo_config->{'pull_url'});
     }
     $repos->{$repo}{'object'} = $p_repo;
@@ -146,8 +157,13 @@ while ( my ($repo_name, $repo) = each (%$repos) ) {
                 if ($hash ne $repo->{'hash'}) {
                     $log->notice("Change in repo $repo_name, scheduling puppet run");
                     $repo->{'hash'} = $hash;
-                    if ($repo->{'object'}->pull) {
-                        $repo->{'object'}->checkout( $cfg->{'repo'}{$repo_name}{'branch'} );
+                    $repo->{'object'}->fetch;
+                    if( !$repo->{'object'}->verify_commit('remotes/origin/' . $cfg->{'repo'}{$repo_name}{'branch'} ) ) {
+                        $log->error("Head of branch in repo $repo_name verification failed");
+                        return;
+                    }
+
+                    if ( $repo->{'object'}->checkout( 'remotes/origin/' . $cfg->{'repo'}{$repo_name}{'branch'} ) ) {
                         if (!defined $events->{'delayed_puppet_run'} ) {
                             $events->{'delayed_puppet_run'} = AnyEvent->timer(
                                 after => 3,

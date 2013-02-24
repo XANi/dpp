@@ -3,12 +3,13 @@ package DPP::VCS::Git;
 use 5.010000;
 use strict;
 use warnings;
-use Carp qw(cluck croak carp);
+use Carp qw(cluck croak carp confess);
 use Data::Dumper;
 use Log::Any qw($log);
 use Symbol qw(gensym);
 use IPC::Open3;
 use File::Path qw(make_path);
+use Symbol 'gensym';
 require Exporter;
 
 our @ISA = qw(Exporter);
@@ -48,6 +49,17 @@ sub new {
         delete $self->{'cfg'}{'force'};
     }
     $self->{'cfg'}{'branch'} ||= 'master';
+    $self->{'cfg'}{'gpg'} ||= 0;;
+    if( $self->{'cfg'}{'gpg'} ) {
+        if ( ref($self->{'cfg'}{'gpg'}) ne 'ARRAY') {
+            if ($self->{'cfg'}{'gpg'} =~ /,/) {
+                my @a = split(/\s*,\s*/, $self->{'cfg'}{'gpg'} );
+                $self->{'cfg'}{'gpg'} = \@a;
+            } else {
+                $self->{'cfg'}{'gpg'} = [ $self->{'cfg'}{'gpg'} ];
+            }
+        }
+    }
     return $self;
 }
 
@@ -73,8 +85,21 @@ sub create {
         push @$cmd, $source;
         push @$cmd, $self->{'cfg'}{'git_dir'};
     }
-    $self->_system('git', $cmd, 'info');
+    $self->_system('git', $cmd);
 }
+
+sub init {
+    my $self = shift;
+    my $url = shift;
+    make_path($self->{'cfg'}{'git_dir'});
+    chdir($self->{'cfg'}{'git_dir'});
+    $self->_system('git', 'init');
+    $self->set_remote('origin',$url);
+    $self->_system('git','fetch','origin');
+    $log->info('creating git repo');
+}
+
+
 
 sub set_remote {
     my $self = shift;
@@ -108,8 +133,8 @@ sub pull {
 sub verify_commit {
     my $self = shift;
     my $commit = shift;
-    if ( !defined($self->{'cfg'}{'gpg_id'}) ) {
-        return;
+    if ( !$self->{'cfg'}{'gpg'} ) {
+        return 1;
     }
     local %ENV;
     $ENV{'LC_ALL'} = 'C';
@@ -118,7 +143,7 @@ sub verify_commit {
     my $pid = open3(undef, $stdout, $stdout, 'git', 'log', '--format=%GG', '-1', $commit);
     my $out;
     while(<$stdout>) {
-        $out .= _$;
+        $out .= $_;
     }
     waitpid( $pid, 0 );
     my $exit_status = $? >> 8;
@@ -127,16 +152,17 @@ sub verify_commit {
         return;
     }
     my $gpgid;
-    if ($out =~ /key ID\s(\S+)\s/) {
+    if ($out =~ /key ID\s(\S+)\s*/) {
         $gpgid = $1;
     }
     else {
+        $log->error("$self->{cfg}{git_dir} $commit does not validate with specified keys");
         return
     }
-    if (grep {/$gpgid/}  $self->{'cfg'}{'gpgid'}) {
+    if (grep {/$gpgid/}  @{ $self->{'cfg'}{'gpg'} } ) {
         return 1;
     }
-    return
+    return;
 }
 
 sub fetch {
@@ -155,7 +181,7 @@ sub checkout {
     if(defined($self->{'cfg'}{'force'})) {
         $self->_system(
             'git',
-            ['reset','--hard', 'origin/' . $branch],
+            ['reset','--hard'],
             'notice',
         );
     }
@@ -205,28 +231,20 @@ sub _system {
     else {
         $args = \@_;
     }
-    my $loglvl = shift;
     # fix for git failin on some GPG operations when LANG is not english
     # because some commands analyze text output from gpg command which change
     # with locale
     local %ENV;
     $ENV{'LC_ALL'} = 'C';
 
-    $loglvl ||= 'info';
     my $failed;
     my $fh_out = gensym;
     if (!defined($prog)) {
         croak "no program given";
     }
-    if (ref $args eq 'SCALAR') {
-        $args = [ $args ],
-    } elsif (ref $args ne 'ARRAY') {
-        croak ("Bad parameters");
-    }
-
     my $pid = open3(undef, $fh_out, $fh_out, ($prog, @$args));
     while(<$fh_out>) {
-        $log->$loglvl($_);
+        $log->info($_);
     }
     my $exit_code = waitpid($pid,0);
     return $exit_code >> 8;
