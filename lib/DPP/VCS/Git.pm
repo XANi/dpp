@@ -50,6 +50,11 @@ sub new {
     }
     $self->{'cfg'}{'branch'} ||= 'master';
     $self->{'cfg'}{'gpg'} ||= 0;;
+    if( $self->{'cfg'}{'gpg'} ) {
+        if ( ref($self->{'cfg'}{'gpg'}) ne 'ARRAY') {
+            $self->{'cfg'}{'gpg'} = [ $self->{'cfg'}{'gpg'} ];
+        }
+    }
     return $self;
 }
 
