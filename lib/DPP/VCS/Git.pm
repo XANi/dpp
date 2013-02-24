@@ -47,9 +47,8 @@ sub new {
     if(defined($self->{'cfg'}{'force'}) && $self->{'cfg'}{'force'} <= 0) {
         delete $self->{'cfg'}{'force'};
     }
-
+    $self->{'cfg'}{'branch'} ||= 'master';
     return $self;
-#    return bless({}, $self);
 }
 
 sub validate {
@@ -104,6 +103,40 @@ sub pull {
         return
     }
     return 1
+}
+
+sub verify_commit {
+    my $self = shift;
+    my $commit = shift;
+    if ( !defined($self->{'cfg'}{'gpg_id'}) ) {
+        return;
+    }
+    local %ENV;
+    $ENV{'LC_ALL'} = 'C';
+    $self->_chdir;
+    my ($stdin, $stdout);
+    my $pid = open3(undef, $stdout, $stdout, 'git', 'log', '--format=%GG', '-1', $commit);
+    my $out;
+    while(<$stdout>) {
+        $out .= _$;
+    }
+    waitpid( $pid, 0 );
+    my $exit_status = $? >> 8;
+    if ($exit_status > 0) {
+        $log->error("GPG verify error: exit code [ $exit_status ] msg:\n$out\n");
+        return;
+    }
+    my $gpgid;
+    if ($out =~ /key ID\s(\S+)\s/) {
+        $gpgid = $1;
+    }
+    else {
+        return
+    }
+    if (grep {/$gpgid/}  $self->{'cfg'}{'gpgid'}) {
+        return 1;
+    }
+    return
 }
 
 sub fetch {
@@ -162,8 +195,23 @@ sub _chdir {
 sub _system {
     my $self = shift;
     my $prog = shift;
-    my $args = shift;
+    my $args;
+    if ( ref($_[0]) eq 'ARRAY') {
+        $args = shift;
+    }
+    elsif (ref $_[0] eq 'SCALAR') {
+        $args = [ $_[0] ],
+    }
+    else {
+        $args = \@_;
+    }
     my $loglvl = shift;
+    # fix for git failin on some GPG operations when LANG is not english
+    # because some commands analyze text output from gpg command which change
+    # with locale
+    local %ENV;
+    $ENV{'LC_ALL'} = 'C';
+
     $loglvl ||= 'info';
     my $failed;
     my $fh_out = gensym;
