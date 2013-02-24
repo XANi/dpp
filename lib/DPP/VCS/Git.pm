@@ -52,7 +52,12 @@ sub new {
     $self->{'cfg'}{'gpg'} ||= 0;;
     if( $self->{'cfg'}{'gpg'} ) {
         if ( ref($self->{'cfg'}{'gpg'}) ne 'ARRAY') {
-            $self->{'cfg'}{'gpg'} = [ $self->{'cfg'}{'gpg'} ];
+            if ($self->{'cfg'}{'gpg'} =~ /,/) {
+                my @a = split(/\s*,\s*/, $self->{'cfg'}{'gpg'} );
+                $self->{'cfg'}{'gpg'} = \@a;
+            } else {
+                $self->{'cfg'}{'gpg'} = [ $self->{'cfg'}{'gpg'} ];
+            }
         }
     }
     return $self;
