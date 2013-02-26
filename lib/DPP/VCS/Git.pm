@@ -136,7 +136,7 @@ sub verify_commit {
     if ( !$self->{'cfg'}{'gpg'} ) {
         return 1;
     }
-    local %ENV;
+    local %ENV = %ENV;
     $ENV{'LC_ALL'} = 'C';
     $self->_chdir;
     my ($stdin, $stdout);
@@ -234,7 +234,7 @@ sub _system {
     # fix for git failin on some GPG operations when LANG is not english
     # because some commands analyze text output from gpg command which change
     # with locale
-    local %ENV;
+    local %ENV = %ENV;
     $ENV{'LC_ALL'} = 'C';
 
     my $failed;
