@@ -187,7 +187,7 @@ sub checkout {
     }
     return $self->_system(
         'git',
-        ['checkout', $branch],
+        ['checkout','-q', $branch],
         'notice',
     )
 }
