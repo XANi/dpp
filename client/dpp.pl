@@ -117,7 +117,7 @@ while (my ($repo, $repo_config) = each ( %{ $cfg->{'repo'} } ) ) {
     }
 }
 # now either repo should be ready or we died
-my $last_run=0;
+my $last_run=time();
 my $finish = AnyEvent->condvar;
 my $run_puppet;
 &arm_puppet;
