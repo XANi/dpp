@@ -208,9 +208,6 @@ $events->{'puppet_runner'} = AnyEvent->timer(
     }
 );
 
-# run at start
-&schedule_run;
-
 my $exit_reason = $finish->recv();
 $log->notice("Exiting because of <$exit_reason>");
 
