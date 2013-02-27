@@ -140,14 +140,14 @@ $events->{'SIGUSR1'} = AnyEvent->signal(
 );
 
 
-my $delayed_run = 0;
+my $delayed_run = $cfg->{'puppet'}{'start_wait'} +  time(),;
 while ( my ($repo_name, $repo) = each (%$repos) ) {
     $events->{"repo_checker-$repo_name"} = AnyEvent->timer(
         after => 5,
         interval => $cfg->{'poll_interval'},
         cb => sub {
             my $url = $cfg->{'repo'}{$repo_name}{'check_url'};
-            if ($delayed_run > 0) {return;} # puppet is scheduled to run so dont bother with next check
+            if ($delayed_run > 0 && ($delayed_run - time()) < 15) {return;} # puppet is scheduled to run so dont bother with next check
             $log->info("Checking $repo_name with url $url");
             http_get $url, sub {
                 my $data = shift;
@@ -187,7 +187,7 @@ while ( my ($repo_name, $repo) = each (%$repos) ) {
     );
 }
 $events->{'puppet_runner'} = AnyEvent->timer(
-    after => $cfg->{'puppet'}{'start_wait'},
+    after => 4,
     interval => 10,
     cb => sub {
         my $t = time;
@@ -200,7 +200,7 @@ $events->{'puppet_runner'} = AnyEvent->timer(
             $log->debug("Waiting for minimal interval");
             return# still waiting for minimum interval
         }
-        if ($delayed_run) {
+        if ($delayed_run > 0 && $delayed_run < time()) {
             $log->debug("Running delayed run");
             &schedule_run;
             return;
@@ -235,6 +235,9 @@ sub schedule_run {
         $delayed_run = 1;
         return
     }
+    if ( $delayed_run > time() ) {
+        $log->notice("run scheduled to start in " . $delayed_run - time());
+    };
     $run_puppet->send;
 }
 
