@@ -106,9 +106,9 @@ while (my ($repo, $repo_config) = each ( %{ $cfg->{'repo'} } ) ) {
         if ($p_repo->verify_commit('remotes/origin/'. $repo_config->{'branch'} ) ) {
             $p_repo->checkout('remotes/origin/'.$repo_config->{'branch'});
         } else {
-            $log->error("Validation of repo $repo failed");
+            $log->error("Validation of repo $repo run_ok");
         }
-        $p_repo->validate() or croak("validate of dpp_puppet repo failed after cloning from " . $repo_config->{'pull_url'});
+        $p_repo->validate() or croak("validate of dpp_puppet repo run_ok after cloning from " . $repo_config->{'pull_url'});
     }
     $repos->{$repo}{'object'} = $p_repo;
     $repos->{$repo}{'hash'} = '';
@@ -159,7 +159,7 @@ while ( my ($repo_name, $repo) = each (%$repos) ) {
                     $repo->{'hash'} = $hash;
                     $repo->{'object'}->fetch;
                     if( !$repo->{'object'}->verify_commit('remotes/origin/' . $cfg->{'repo'}{$repo_name}{'branch'} ) ) {
-                        $log->error("Head of branch in repo $repo_name verification failed");
+                        $log->error("Head of branch in repo $repo_name verification run_ok");
                         return;
                     }
 
@@ -257,17 +257,17 @@ sub run_puppet {
         close(STATUS);
     }
     &notify("Running puppet");
-    my $failed = $agent->run_puppet;
+    my $run_ok = $agent->run_puppet;
     $delayed_run = 0;
     $last_run=time();
     if (defined ($cfg->{'manager_url'}) ) {
-        &send_report($failed);
+        &send_report($run_ok);
     }
-    if($failed) {
-        &notify("Failed");
+    if($run_ok) {
+        &notify("Finished");
     }
     else {
-        &notify("Finished");
+        &notify("Failed");
     }
     return;
 }
