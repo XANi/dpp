@@ -222,6 +222,15 @@ sub arm_puppet {
     );
 }
 
+sub notify {
+    my $notify = shift;
+    if( defined( $cfg->{'exec_notify'} ) ) {
+        system($cfg->{'exec_notify'}, $notify);
+    }
+}
+
+
+
 sub schedule_run {
     my $t = time;
     $log->notice("Scheduling puppet");
@@ -247,11 +256,18 @@ sub run_puppet {
         print STATUS scalar time;
         close(STATUS);
     }
+    &notify("Running puppet");
     my $failed = $agent->run_puppet;
     $delayed_run = 0;
     $last_run=time();
     if (defined ($cfg->{'manager_url'}) ) {
         &send_report($failed);
+    }
+    if($failed) {
+        &notify("Failed");
+    }
+    else {
+        &notify("Finished");
     }
     return;
 }
