@@ -6,6 +6,7 @@ package { [
            'libjson-xs-perl',
            'libanyevent-perl',
            'libanyevent-http-perl',
+           'libnet-ssleay-perl', #ssl/tls for anyevent
            'liblog-any-perl',
            'ruby-hiera-puppet',
            'liblog-any-adapter-dispatch-perl',]:
