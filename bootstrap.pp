@@ -18,3 +18,31 @@ exec {'checkout-repo':
     creates => '/usr/src/dpp/.git/config',
     logoutput => true,
 }
+
+#dummy hiera config
+
+$hiera_cfg = '
+# dummy hiera config
+---
+:backends:
+  - yaml
+
+:logger: console
+
+# hack around not being able to specify more than one datadir, at least till they fix it
+
+:hierarchy:
+  - test/%{hostname}
+
+:yaml:
+    :datadir: /path/to/hiera/dir
+'
+
+file {[
+       '/etc/hiera.yaml',
+       '/etc/puppet/hiera.yaml',
+       ]:
+           mode    => 644,
+           owner   => root,
+           content => $hiera_cfg,
+}
