@@ -117,7 +117,7 @@ while (my ($repo, $repo_config) = each ( %{ $cfg->{'repo'} } ) ) {
     }
 }
 # now either repo should be ready or we died
-my $last_run=time();
+my $last_run=time() - $cfg->{'puppet'}{'minimum_interval'} + $cfg->{'puppet'}{'start_wait'};
 my $finish = AnyEvent->condvar;
 my $run_puppet;
 &arm_puppet;
