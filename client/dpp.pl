@@ -26,13 +26,13 @@ use Term::ANSIColor qw(color colorstrip);
 
 use DPP::Agent;
 use DPP::VCS::Git;
-use Net::Domain qw(hostname hostfqdn hostdomain domainname);
 
-# hack around puppet derp encoding 
+# hack around puppet derp encoding
 $ENV{'LANG'}="C.UTF-8";
 $ENV{'LC_ALL'}="C.UTF-8";
 
-my $hostname = hostfqdn || hostname || 'no-hostname-wtf';
+my $hostname = `hostname --fqdn`;
+chomp($hostname);
 
 
 our $VERSION = '0.01';
