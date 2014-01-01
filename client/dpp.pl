@@ -28,6 +28,10 @@ use DPP::Agent;
 use DPP::VCS::Git;
 use Net::Domain qw(hostname hostfqdn hostdomain domainname);
 
+# hack around puppet derp encoding 
+$ENV{'LANG'}="C.UTF-8";
+$ENV{'LC_ALL'}="C.UTF-8";
+
 my $hostname = hostfqdn || hostname || 'no-hostname-wtf';
 
 
@@ -117,7 +121,7 @@ while (my ($repo, $repo_config) = each ( %{ $cfg->{'repo'} } ) ) {
     }
 }
 # now either repo should be ready or we died
-my $last_run=time();
+my $last_run=time() - $cfg->{'puppet'}{'minimum_interval'} + $cfg->{'puppet'}{'start_wait'};
 my $finish = AnyEvent->condvar;
 my $run_puppet;
 &arm_puppet;
