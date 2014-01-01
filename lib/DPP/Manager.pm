@@ -38,7 +38,6 @@ sub startup {
         title => "DPP manager",
         layout => $cfg->{'default_layout'} // 'main',
     );
-    $self->plugin(PoweredBy => (name => "DPP"));
     # TODO /dev/urandom!!!
     $self->secret( $cfg->{'secret'} || rand(1000000000000000) );
     # Router
