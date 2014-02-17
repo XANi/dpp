@@ -26,9 +26,13 @@ use Term::ANSIColor qw(color colorstrip);
 
 use DPP::Agent;
 use DPP::VCS::Git;
-use Net::Domain qw(hostname hostfqdn hostdomain domainname);
 
-my $hostname = hostfqdn || hostname || 'no-hostname-wtf';
+# hack around puppet derp encoding
+$ENV{'LANG'}="C.UTF-8";
+$ENV{'LC_ALL'}="C.UTF-8";
+
+my $hostname = `hostname --fqdn`;
+chomp($hostname);
 
 
 our $VERSION = '0.01';
@@ -108,9 +112,9 @@ while (my ($repo, $repo_config) = each ( %{ $cfg->{'repo'} } ) ) {
             $p_repo->checkout('remotes/origin/'.$repo_config->{'branch'});
             $p_repo->init_submodule;
         } else {
-            $log->error("Validation of repo $repo failed");
+            $log->error("Validation of repo $repo run_ok");
         }
-        $p_repo->validate() or croak("validate of dpp_puppet repo failed after cloning from " . $repo_config->{'pull_url'});
+        $p_repo->validate() or croak("validate of dpp_puppet repo run_ok after cloning from " . $repo_config->{'pull_url'});
     }
     $repos->{$repo}{'object'} = $p_repo;
     $repos->{$repo}{'hash'} = '';
@@ -119,7 +123,7 @@ while (my ($repo, $repo_config) = each ( %{ $cfg->{'repo'} } ) ) {
     }
 }
 # now either repo should be ready or we died
-my $last_run=0;
+my $last_run=time() - $cfg->{'puppet'}{'minimum_interval'} + $cfg->{'puppet'}{'start_wait'};
 my $finish = AnyEvent->condvar;
 my $run_puppet;
 &arm_puppet;
@@ -142,14 +146,14 @@ $events->{'SIGUSR1'} = AnyEvent->signal(
 );
 
 
-my $delayed_run = 0;
+my $delayed_run = $cfg->{'puppet'}{'start_wait'} +  time(),;
 while ( my ($repo_name, $repo) = each (%$repos) ) {
     $events->{"repo_checker-$repo_name"} = AnyEvent->timer(
         after => 5,
         interval => $cfg->{'poll_interval'},
         cb => sub {
             my $url = $cfg->{'repo'}{$repo_name}{'check_url'};
-            if ($delayed_run > 0) {return;} # puppet is scheduled to run so dont bother with next check
+            if ($delayed_run > 0 && ($delayed_run - time()) < 15) {return;} # puppet is scheduled to run so dont bother with next check
             $log->info("Checking $repo_name with url $url");
             http_get $url, sub {
                 my $data = shift;
@@ -161,7 +165,7 @@ while ( my ($repo_name, $repo) = each (%$repos) ) {
                     $repo->{'hash'} = $hash;
                     $repo->{'object'}->fetch;
                     if( !$repo->{'object'}->verify_commit('remotes/origin/' . $cfg->{'repo'}{$repo_name}{'branch'} ) ) {
-                        $log->error("Head of branch in repo $repo_name verification failed");
+                        $log->error("Head of branch in repo $repo_name verification run_ok");
                         return;
                     }
 
@@ -190,7 +194,7 @@ while ( my ($repo_name, $repo) = each (%$repos) ) {
     );
 }
 $events->{'puppet_runner'} = AnyEvent->timer(
-    after => $cfg->{'puppet'}{'start_wait'},
+    after => 4,
     interval => 10,
     cb => sub {
         my $t = time;
@@ -203,16 +207,13 @@ $events->{'puppet_runner'} = AnyEvent->timer(
             $log->debug("Waiting for minimal interval");
             return# still waiting for minimum interval
         }
-        if ($delayed_run) {
+        if ($delayed_run > 0 && $delayed_run < time()) {
             $log->debug("Running delayed run");
             &schedule_run;
             return;
         }
     }
 );
-
-# run at start
-&schedule_run;
 
 my $exit_reason = $finish->recv();
 $log->notice("Exiting because of <$exit_reason>");
@@ -228,6 +229,15 @@ sub arm_puppet {
     );
 }
 
+sub notify {
+    my $notify = shift;
+    if( defined( $cfg->{'exec_notify'} ) ) {
+        system($cfg->{'exec_notify'}, $notify);
+    }
+}
+
+
+
 sub schedule_run {
     my $t = time;
     $log->notice("Scheduling puppet");
@@ -241,6 +251,9 @@ sub schedule_run {
         $delayed_run = 1;
         return
     }
+    if ( $delayed_run > time() ) {
+        $log->notice("run scheduled to start in " . $delayed_run - time());
+    };
     $run_puppet->send;
 }
 
@@ -250,11 +263,18 @@ sub run_puppet {
         print STATUS scalar time;
         close(STATUS);
     }
-    my $failed = $agent->run_puppet;
+    &notify("Running puppet");
+    my $run_ok = $agent->run_puppet;
     $delayed_run = 0;
     $last_run=time();
     if (defined ($cfg->{'manager_url'}) ) {
-        &send_report($failed);
+        &send_report($run_ok);
+    }
+    if($run_ok) {
+        &notify("Finished");
+    }
+    else {
+        &notify("Failed");
     }
     return;
 }

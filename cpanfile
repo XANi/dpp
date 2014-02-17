@@ -1,4 +1,6 @@
 requires 'EV';
+requires 'Mojolicious', '>= 4.60';
+requires 'Mojolicious::Plugin::TtRenderer';
 requires 'File::Slurp';
 requires 'YAML';
 requires 'YAML::XS';
@@ -6,8 +8,11 @@ requires 'JSON';
 requires 'JSON::XS';
 requires 'AnyEvent';
 requires 'AnyEvent::HTTP';
+requires 'DBI';
+requires 'DBD::SQLite';
 requires 'Log::Any';
 requires 'Log::Any::Adapter';
 requires 'Log::Dispatch';
 requires 'Term::ANSIColor';
 requires 'Net::Domain';
+requires 'common::sense';
