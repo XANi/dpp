@@ -171,6 +171,19 @@ sub fetch {
     return $self->_system('git', 'fetch');
 }
 
+
+sub init_submodule {
+    my $self = shift;
+    $self->_chdir;
+    return $self->_system('git', 'submodule', 'init');
+}
+
+sub update_submodule {
+    my $self = shift;
+    $self->_chdir;
+    return $self->_system('git', 'submodule', 'update');
+}
+
 sub checkout {
     my $self = shift;
     my $branch = shift;

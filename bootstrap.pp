@@ -7,6 +7,7 @@ package { [
            'libanyevent-perl',
            'libanyevent-http-perl',
            'liblog-any-perl',
+           'liblwp-protocol-https-perl',
            'liblog-any-adapter-dispatch-perl',]:
                ensure => installed,
 }

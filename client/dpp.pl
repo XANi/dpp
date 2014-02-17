@@ -100,11 +100,13 @@ while (my ($repo, $repo_config) = each ( %{ $cfg->{'repo'} } ) ) {
 
     if ( $p_repo->validate() ) {
         $p_repo->fetch();
+        $p_repo->init_submodule;
     } else {
         $p_repo->init($repo_config->{'pull_url'});
         $p_repo->fetch();
         if ($p_repo->verify_commit('remotes/origin/'. $repo_config->{'branch'} ) ) {
             $p_repo->checkout('remotes/origin/'.$repo_config->{'branch'});
+            $p_repo->init_submodule;
         } else {
             $log->error("Validation of repo $repo failed");
         }
@@ -164,6 +166,7 @@ while ( my ($repo_name, $repo) = each (%$repos) ) {
                     }
 
                     if ( $repo->{'object'}->checkout( 'remotes/origin/' . $cfg->{'repo'}{$repo_name}{'branch'} ) ) {
+                        $repo->{'object'}->update_submodule;
                         if (!defined $events->{'delayed_puppet_run'} ) {
                             $events->{'delayed_puppet_run'} = AnyEvent->timer(
                                 after => 3,

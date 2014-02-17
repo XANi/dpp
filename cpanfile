@@ -1,0 +1,13 @@
+requires 'EV';
+requires 'File::Slurp';
+requires 'YAML';
+requires 'YAML::XS';
+requires 'JSON';
+requires 'JSON::XS';
+requires 'AnyEvent';
+requires 'AnyEvent::HTTP';
+requires 'Log::Any';
+requires 'Log::Any::Adapter';
+requires 'Log::Dispatch';
+requires 'Term::ANSIColor';
+requires 'Net::Domain';
