@@ -1,0 +1,194 @@
+#!/usr/bin/perl
+use v5.10;
+use FindBin;
+use lib $FindBin::Bin . '/../lib';
+use strict;
+use warnings;
+use Carp qw(cluck croak carp confess);
+use POSIX qw/strftime/;
+use YAML;
+use Getopt::Long;
+use Pod::Usage;
+use Term::ANSIColor qw(color colorstrip);
+use File::Slurp qw(read_file write_file);
+
+use subs qw(hiera_config dpp_config puppet_config);
+
+my $print_headers = {
+    'ok'   => '[ ' . color('green') . 'OK' . color('reset') .' ]',
+    'fail' => '[' . color('red') . 'FAIL' . color('reset') .']',
+    'skip' => '[' . color('yellow') . 'SKIP' . color('reset') .']',
+};
+
+my $cfg = { # default config values go here
+    'hiera-config'  => 1,
+    'dpp-config'    => 1,
+    'puppet-config' => 1,
+    'dump'          => 0,
+};
+my $help;
+
+GetOptions(
+    'help'           => \$help,
+    'hiera-config!'  => \$cfg->{'hiera-config'},
+    'dpp-config!'    => \$cfg->{'dpp-config'},
+    'dump'           => \$cfg->{'dump'},
+    'puppet-config!' => \$cfg->{'puppet-config'},
+) or pod2usage(
+    -verbose => 2,  #2 is "full man page" 1 is usage + options ,0/undef is only usage
+    -exitval => 1,   #exit with error code if there is something wrong with arguments so anything depending on exit code fails too
+);
+
+# some options are required, display short help if user misses them
+my $required_opts = [ ];
+my $missing_opts;
+foreach (@$required_opts) {
+    if (!defined( $cfg->{$_} ) ) {
+        push @$missing_opts, $_
+    }
+}
+
+if ($help || defined( $missing_opts ) ) {
+    my $msg;
+    my $verbose = 2;
+    if (!$help && defined( $missing_opts ) ) {
+        $msg = 'Opts ' . join(', ',@$missing_opts) . " are required!\n";
+        $verbose = 1; # only short help on bad arguments
+    }
+    pod2usage(
+        -message => $msg,
+        -verbose => $verbose, #exit code doesnt work with verbose > 2, it changes to 1
+    );
+}
+
+my $outfile = $ARGV[0] || 'bootstrap.yaml';
+my $out_data = {
+    version        => '0.1',
+    puppet_version => `puppet --version`,
+};
+
+if( $cfg->{'hiera-config'} ) {
+    print 'Hiera config: ';
+    hiera_config;
+    say  $print_headers->{'ok'};
+} else {
+    say 'Hiera config: ' . $print_headers->{'skip'}
+}
+
+if( $cfg->{'dpp-config'} ) {
+    print 'DPP config: ';
+    dpp_config;
+    say $print_headers->{'ok'};
+} else {
+    say 'DPP config: ' . $print_headers->{'skip'}
+}
+
+if( $cfg->{'puppet-config'} ) {
+    print 'Puppet config: ';
+    puppet_config;
+    say $print_headers->{'ok'};
+} else {
+    say 'Puppet config: ' . $print_headers->{'skip'}
+}
+
+if ($cfg->{'dump'}) {
+    print Dump $out_data;
+}
+say "Writing to $outfile";
+write_file($outfile, Dump $out_data);
+
+sub hiera_config {
+    my $f = read_file('/etc/puppet/hiera.yaml') or croak("Can't load hiera config: $!");
+    $out_data->{'hiera-config'} = $f;
+}
+
+sub dpp_config {
+    my $f = read_file('/etc/dpp.conf') or croak("Can't load dpp config: $!");
+    my $dpp_config = Load($f);
+    my @keys;
+    while(my ($k, $v) = each %{ $dpp_config->{'repo'} } ) {
+        if (ref($v->{'gpg'}) eq 'ARRAY') {
+            push @keys, @{ $v->{'gpg'}};
+        } elsif ( ref($v->{'gpg'}) eq 'SCALAR') {
+            push @keys, $v->{'gpg'};
+        }
+    }
+    my %keys = map { $_, 1 } @keys;
+    foreach my $key (keys %keys) {
+        print "Importing GPG key $key";
+        my $pid = open(my $gpg, '-|', 'gpg','--armor','-q','--export', $key) or croak ($!);
+        $keys{$key} = do { local $/; <$gpg> };
+        close($gpg);
+        if (length $keys{$key} > 0) {
+            say $print_headers->{'ok'}
+        } else {
+            say $print_headers->{'fail'}
+        }
+    }
+    $out_data->{'gpg-keys'} = \%keys;
+    $out_data->{'dpp-config'} = $f;
+}
+
+sub puppet_config {
+    my $f = read_file('/etc/puppet/puppet.conf') or croak("Can't load puppet config: $!");
+    $out_data->{'puppet-config'} = $f;
+}
+
+
+
+
+__END__
+
+=head1 NAME
+
+dpp-generate-bootstrap - generate bootstrap file for booting new server
+
+=head1 SYNOPSIS
+
+dpp-generate-bootstrap [filename.yaml
+
+
+=head1 DESCRIPTION
+
+
+=head1 OPTIONS
+
+parameters can be shortened if unique, like  --add -> -a
+
+binary options accept --no so --no-hiera-config will not add hiera config to resulting bootstrap
+
+=over 4
+
+=item B<--hiera-config>
+
+copy hiera config
+
+=item B<--dpp-config>
+
+copy DPP config
+
+=item B<--puppet-config>
+
+copy puppet config
+
+=item B<--help>
+
+display full help
+
+=back
+
+=head1 EXAMPLES
+
+=over 4
+
+=item B<foobar>
+
+Does foo to bar with defaults
+
+=item B<foobar --bar bar2>
+
+Does foo to specified bar
+
+=back
+
+=cut
