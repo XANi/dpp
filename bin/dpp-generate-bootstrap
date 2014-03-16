@@ -11,6 +11,8 @@ use Getopt::Long;
 use Pod::Usage;
 use Term::ANSIColor qw(color colorstrip);
 use File::Slurp qw(read_file write_file);
+use Digest::SHA qw(sha256_hex);
+use Encode qw(encode_utf8);
 
 use subs qw(hiera_config dpp_config puppet_config);
 
@@ -90,12 +92,14 @@ if( $cfg->{'puppet-config'} ) {
 } else {
     say 'Puppet config: ' . $print_headers->{'skip'}
 }
-
+my $compiled_data = Dump $out_data;
 if ($cfg->{'dump'}) {
-    print Dump $out_data;
+    print $compiled_data;
 }
 say "Writing to $outfile";
-write_file($outfile, Dump $out_data);
+write_file($outfile, $compiled_data);
+say "SHA256 sum: " . sha256_hex( encode_utf8($compiled_data));
+say "To bootstrap target machine, do dppd --bootstrap https://bootstrap/file --checksum " . sha256_hex($compiled_data);
 
 sub hiera_config {
     my $f = read_file('/etc/puppet/hiera.yaml') or croak("Can't load hiera config: $!");
