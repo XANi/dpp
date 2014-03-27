@@ -12,6 +12,7 @@ requires 'DBI';
 requires 'DBD::SQLite';
 requires 'Log::Any';
 requires 'Log::Any::Adapter';
+requires 'Log::Any::Adapter::Dispatch';
 requires 'Log::Dispatch';
 requires 'Term::ANSIColor';
 requires 'Net::Domain';
