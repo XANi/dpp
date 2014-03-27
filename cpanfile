@@ -8,6 +8,8 @@ requires 'JSON';
 requires 'JSON::XS';
 requires 'AnyEvent';
 requires 'AnyEvent::HTTP';
+requires 'LWP::UserAgent';
+requires 'Digest::SHA';
 requires 'DBI';
 requires 'DBD::SQLite';
 requires 'Log::Any';

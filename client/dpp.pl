@@ -5,6 +5,8 @@ use strict;
 use warnings;
 use Carp qw(cluck croak carp confess);
 use POSIX qw/strftime/;
+use Getopt::Long;
+use Pod::Usage;
 
 use EV;
 use AnyEvent;
@@ -25,6 +27,7 @@ use Log::Dispatch::Screen;
 use Term::ANSIColor qw(color colorstrip);
 
 use DPP::Agent;
+use DPP::Bootstrap;
 use DPP::VCS::Git;
 
 # hack around puppet derp encoding
@@ -36,10 +39,23 @@ chomp($hostname);
 
 
 our $VERSION = '0.01';
-my $yaml = read_file('/etc/dpp.conf');
-my $cfg = Load($yaml) or croak($!);
-$cfg->{'log'}{'level'} ||= 'debug';
+
+my $help;
+my $cfg = {
+    'config-file' => '/etc/dpp.conf',
+};
+GetOptions(
+    'help'           => \$help,
+    'bootstrap=s'    => \$cfg->{'bootstrap'},
+    'checksum=s'     => \$cfg->{'checksum'},
+) or pod2usage(
+    -verbose => 2,  #2 is "full man page" 1 is usage + options ,0/undef is only usage
+    -exitval => 1,   #exit with error code if there is something wrong with arguments so anything depending on exit code fails too
+);
+
 my $logger = Log::Dispatch->new();
+
+$cfg->{'log'}{'level'} ||= 'debug';
 $logger->add(
     Log::Dispatch::Screen->new(
         name      => 'screen',
@@ -50,6 +66,18 @@ $logger->add(
 Log::Any::Adapter->set( 'Dispatch', dispatcher => $logger );
 
 
+if($cfg->{'bootstrap'}) {
+    my $bootstrap = DPP::Bootstrap->new(
+        url => $cfg->{'bootstrap'},
+        checksum => $cfg->{'checksum'},
+    );
+    $log->notice("bootstrap complete");
+    exit;
+}
+
+my $yaml = read_file('/etc/dpp.conf');
+$cfg = Load($yaml) or croak($!);
+$cfg->{'log'}{'level'} ||= 'debug';
 
 # simple validate of config vars, TODO make better
 my @validate = (

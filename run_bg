@@ -1,5 +1,3 @@
 #!/bin/bash
-cd /usr/src/dpp/client
-/usr/bin/screen -dmS dpp ./dpp.pl &
-
-
+cd /usr/src/dpp
+/usr/bin/screen -dmS dpp bash -c 'carton exec client/dpp.pl' &
