@@ -8,23 +8,25 @@ use POSIX qw/strftime/;
 use Getopt::Long;
 use Pod::Usage;
 
-use EV;
-use AnyEvent;
-use AnyEvent::HTTP;
 
-use File::Slurp;
-use YAML::XS;
-use JSON::XS;
+use EV;
+use AnyEvent::HTTP;
+use AnyEvent;
 use Data::Dumper;
 use Digest::SHA qw(sha1_hex);
 use File::Path qw (make_path);
-use Symbol qw(gensym);
+use File::Slurp;
 use IPC::Open3;
+use JSON::XS;
 use Log::Any qw($log);
 use Log::Any::Adapter;
 use Log::Dispatch;
 use Log::Dispatch::Screen;
+use Log::Dispatch::File;
+use Log::Dispatch::Syslog;
+use Symbol qw(gensym);
 use Term::ANSIColor qw(color colorstrip);
+use YAML::XS;
 
 use DPP::Agent;
 use DPP::Bootstrap;
@@ -47,22 +49,73 @@ my $cfg = {
 GetOptions(
     'help'           => \$help,
     'bootstrap=s'    => \$cfg->{'bootstrap'},
+    'log-file=s'     => \$cfg->{'log'}{'file'},
+    'daemonize'      => \$cfg->{'daemonize'},
+    'pid-file=s'     => \$cfg->{'pid_file'},
     'checksum=s'     => \$cfg->{'checksum'},
 ) or pod2usage(
     -verbose => 2,  #2 is "full man page" 1 is usage + options ,0/undef is only usage
     -exitval => 1,   #exit with error code if there is something wrong with arguments so anything depending on exit code fails too
 );
 
-my $logger = Log::Dispatch->new();
-
+my $yaml = read_file($cfg->{'config-file'});
+my $file_cfg = Load($yaml) or croak($!);
+$cfg = { %$file_cfg, %$cfg };
 $cfg->{'log'}{'level'} ||= 'debug';
-$logger->add(
-    Log::Dispatch::Screen->new(
-        name      => 'screen',
-        min_level => $cfg->{'log'}{'level'},
-        callbacks => (\&_log_helper_timestamp),
-    )
-);
+$cfg->{'log'}{'ansicolor'} ||= 1;
+
+
+my $logger = Log::Dispatch->new();
+if (!$cfg->{'log'}{'target'}) {
+    if( defined($cfg->{'log'}{'file'}) || $cfg->{'daemonize'} ) {
+        $cfg->{'log'}{'target'} = 'file';
+    }
+    else {
+        $cfg->{'log'}{'target'} = 'stderr';
+    }
+}
+$cfg->{'log'}{'level'} ||= 'debug';
+
+if ($cfg->{'log'}{'target'} eq 'stderr') {
+    $logger->add(
+        Log::Dispatch::Screen->new(
+            name      => 'screen',
+            min_level => $cfg->{'log'}{'level'},
+            callbacks => (\&_log_helper_timestamp),
+        )
+      );
+}
+elsif ($cfg->{'log'}{'target'} eq 'file') {
+    if (!defined($cfg->{'log'}{'file'})) {
+        croak("log type selected as file but no file specified!");
+    }
+    $cfg->{'log'}{'ansicolor'} = 0;
+    $logger->add(
+        Log::Dispatch::File->new(
+            name      => 'file',
+            mode      => '>>',
+            min_level => $cfg->{'log'}{'level'},
+            callbacks => (\&_log_helper_timestamp),
+            filename => $cfg->{'log'}{'file'},
+        )
+      );
+}
+elsif ($cfg->{'log'}{'target'} eq 'syslog') {
+    $cfg->{'log'}{'ansicolor'} = 0;
+    $logger->add(
+        Log::Dispatch::Syslog->new(
+            name      => 'syslog',
+            min_level => $cfg->{'log'}{'level'},
+            callbacks => (\&_log_helper),
+            ident     => 'dpp',
+        )
+      );
+}
+else {
+    croak("All logging methods are disabled, refusing to run");
+}
+
+
 Log::Any::Adapter->set( 'Dispatch', dispatcher => $logger );
 
 
@@ -75,9 +128,7 @@ if($cfg->{'bootstrap'}) {
     exit;
 }
 
-my $yaml = read_file('/etc/dpp.conf');
-$cfg = Load($yaml) or croak($!);
-$cfg->{'log'}{'level'} ||= 'debug';
+
 
 # simple validate of config vars, TODO make better
 my @validate = (
@@ -90,11 +141,22 @@ foreach my $cfg_option (@validate) {
     }
 }
 my $date_format = '%Y/%m/%d %T%z';
-if (defined($cfg->{'pid_file'})) {
-    open(PID, '>', $cfg->{'pid_file'});
-    print PID $$;
-    close(PID);
+my $pid = $$;
+if ($cfg->{'daemonize'}) {
+    $pid = fork;
+    if ($pid < 0) { croak($!); }
 }
+
+if($pid && $cfg->{'pidfile'}) {
+    open(P, '>', $cfg->{'pidfile'}) or die($!);
+    print P $pid;
+    close(P);
+}
+
+if ($pid && $cfg->{'daemonize'}) {
+    exit;
+}
+
 # defaults
 $cfg->{'repo_dir'} ||= '/var/lib/dpp/repos';
 $cfg->{'hiera_dir'} ||= '/var/lib/dpp/hiera';
@@ -102,7 +164,6 @@ $cfg->{'poll_interval'} ||= 60;
 $cfg->{'puppet'}{'start_wait'} ||= 60;
 $cfg->{'puppet'}{'minimum_interval'} ||= 120;
 $cfg->{'puppet'}{'schedule_run'} ||= 3600;
-if( !exists($cfg->{'log'}{'ansicolor'}) ) {$cfg->{'log'}{'ansicolor'} = 1}
 
 if ( ! -e $cfg->{'hiera_dir'} ) {make_path($cfg->{'hiera_dir'},1,700) or die($!)}
 if ( ! -e $cfg->{'repo_dir'} ) {make_path($cfg->{'repo_dir'},1,700) or die($!)}
@@ -341,7 +402,7 @@ sub send_report {
     return;
 }
 
-sub _log_helper_timestamp() {
+sub _log_helper_timestamp {
     my %a = @_;
     my $out;
     my $multiline_mark = '';
@@ -351,6 +412,17 @@ sub _log_helper_timestamp() {
         } else {
             $out .= strftime('%Y-%m-%dT%H:%M:%S%z',localtime(time)) . ' ' . $a{'level'} . ': ' . $multiline_mark . colorstrip($_) . "\n";
         }
+        $multiline_mark = '.  '
+   }
+    return $out
+}
+
+sub _log_helper {
+    my %a = @_;
+    my $out;
+    my $multiline_mark = '';
+    foreach( split(/\n/,$a{'message'}) ) {
+        $out .= $multiline_mark . $_ . "\n";
         $multiline_mark = '.  '
     }
     return $out
