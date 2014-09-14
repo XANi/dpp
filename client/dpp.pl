@@ -26,7 +26,7 @@ use Log::Dispatch::File;
 use Log::Dispatch::Syslog;
 use Symbol qw(gensym);
 use Term::ANSIColor qw(color colorstrip);
-use YAML::XS;
+use YAML::XS qw(Load LoadFile Dump);
 
 use DPP::Agent;
 use DPP::Bootstrap;
@@ -43,9 +43,22 @@ chomp($hostname);
 our $VERSION = '0.01';
 
 my $help;
-my $cfg = {
-    'config-file' => '/etc/dpp.conf',
-};
+my $cfg;
+
+my $cf_list = [
+    'cfg/dpp.conf',
+    '/etc/dpp.conf',
+    'cfg/dpp.default.conf',
+];
+foreach my $f (@$cf_list) {
+    if ( -r $f ) {
+        $cfg = LoadFile($f);
+        last;
+    }
+}
+if (!defined($cfg)) {
+    croak("Can't find any config in" . Dump $cf_list);
+}
 GetOptions(
     'help'           => \$help,
     'bootstrap=s'    => \$cfg->{'bootstrap'},
@@ -57,10 +70,6 @@ GetOptions(
     -verbose => 2,  #2 is "full man page" 1 is usage + options ,0/undef is only usage
     -exitval => 1,   #exit with error code if there is something wrong with arguments so anything depending on exit code fails too
 );
-
-my $yaml = read_file($cfg->{'config-file'});
-my $file_cfg = Load($yaml) or croak($!);
-$cfg = { %$file_cfg, %$cfg };
 $cfg->{'log'}{'level'} ||= 'debug';
 $cfg->{'log'}{'ansicolor'} ||= 1;
 
@@ -75,7 +84,7 @@ if (!$cfg->{'log'}{'target'}) {
     }
 }
 $cfg->{'log'}{'level'} ||= 'debug';
-
+print Dumper $cfg;
 if ($cfg->{'log'}{'target'} eq 'stderr') {
     $logger->add(
         Log::Dispatch::Screen->new(
@@ -147,8 +156,9 @@ if ($cfg->{'daemonize'}) {
     if ($pid < 0) { croak($!); }
 }
 
-if($pid && $cfg->{'pidfile'}) {
-    open(P, '>', $cfg->{'pidfile'}) or die($!);
+if($pid && $cfg->{'pid_file'}) {
+    $log->debug('saving pidfile in ' . $cfg->{'pid_file'});
+    open(P, '>', $cfg->{'pid_file'}) or die($!);
     print P $pid;
     close(P);
 }
@@ -215,8 +225,6 @@ while (my ($repo, $repo_config) = each ( %{ $cfg->{'repo'} } ) ) {
 my $last_run=time() - $cfg->{'puppet'}{'minimum_interval'} + $cfg->{'puppet'}{'start_wait'};
 my $finish = AnyEvent->condvar;
 my $run_puppet;
-&arm_puppet;
-
 my $events;
 $events->{'SIGTERM'} = AnyEvent->signal (
     signal => 'TERM',
@@ -234,6 +242,7 @@ $events->{'SIGUSR1'} = AnyEvent->signal(
     },
 );
 
+&arm_puppet;
 
 my $delayed_run = $cfg->{'puppet'}{'start_wait'} +  time(),;
 while ( my ($repo_name, $repo) = each (%$repos) ) {
