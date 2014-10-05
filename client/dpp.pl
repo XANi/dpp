@@ -73,7 +73,11 @@ GetOptions(
     -exitval => 1,   #exit with error code if there is something wrong with arguments so anything depending on exit code fails too
 );
 $cfg->{'log'}{'level'} ||= 'debug';
-$cfg->{'log'}{'ansicolor'} ||= 1;
+if ($cfg->{'log'}{'target'} eq 'stderr') {
+    $cfg->{'log'}{'ansicolor'} ||= 1;
+} else {
+    $cfg->{'log'}{'ansicolor'} ||= 0;
+}
 
 
 my $logger = Log::Dispatch->new();
