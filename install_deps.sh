@@ -1,4 +1,5 @@
 #!/bin/bash
-aptitude install carton
-aptitude install puppet
+apt-get install git
+apt-get install carton
+apt-get install puppet
 carton install

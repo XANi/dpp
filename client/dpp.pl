@@ -37,6 +37,7 @@ $ENV{'LANG'}="C.UTF-8";
 $ENV{'LC_ALL'}="C.UTF-8";
 
 my $hostname = `hostname --fqdn`;
+$0 = 'dpp';
 chomp($hostname);
 
 
@@ -64,6 +65,7 @@ GetOptions(
     'bootstrap=s'    => \$cfg->{'bootstrap'},
     'log-file=s'     => \$cfg->{'log'}{'file'},
     'daemonize'      => \$cfg->{'daemonize'},
+    'config-dump'    => \$cfg->{'config-dump'},
     'pid-file=s'     => \$cfg->{'pid_file'},
     'checksum=s'     => \$cfg->{'checksum'},
 ) or pod2usage(
@@ -84,7 +86,9 @@ if (!$cfg->{'log'}{'target'}) {
     }
 }
 $cfg->{'log'}{'level'} ||= 'debug';
-print Dumper $cfg;
+if ($cfg->{'config-dump'}) {
+    print Dumper $cfg;
+}
 if ($cfg->{'log'}{'target'} eq 'stderr') {
     $logger->add(
         Log::Dispatch::Screen->new(

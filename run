@@ -1,0 +1,7 @@
+#!/bin/bash
+SCRIPTPATH=$(dirname "$0")
+cd $SCRIPTPATH
+if [ ! -e cpanfile.snapshot ] ; then
+    carton install
+fi
+carton exec client/dpp.pl "$@"
