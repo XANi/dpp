@@ -1,6 +1,5 @@
 requires 'AnyEvent';
 requires 'AnyEvent::HTTP';
-requires 'AnyEvent::Log';
 requires 'DBD::SQLite';
 requires 'DBI';
 requires 'Digest::SHA';
