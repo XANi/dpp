@@ -1,6 +1,5 @@
 requires 'AnyEvent';
 requires 'AnyEvent::HTTP';
-requires 'AnyEvent::TLS';
 requires 'DBD::SQLite';
 requires 'DBI';
 requires 'Digest::SHA';
@@ -16,6 +15,7 @@ requires 'Log::Dispatch';
 requires 'Mojolicious', '>= 4.60';
 requires 'Mojolicious::Plugin::TtRenderer';
 requires 'Net::Domain';
+requires 'Net::SSLeay':
 requires 'Term::ANSIColor';
 requires 'YAML';
 requires 'YAML::XS';
