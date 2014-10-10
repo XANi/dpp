@@ -306,7 +306,7 @@ $events->{'puppet_runner'} = AnyEvent->timer(
         my $t = time;
         if ( ( $last_run + 3600 + $cfg->{'puppet'}{'schedule_run'} ) < $t ) {
             $log->notice("No commits in a while, periodic puppet run scheduled");
-            &schedule_puppet;
+            &schedule_run;
             return;
         }
         if ( $delayed_run && ( ( $last_run + $cfg->{'puppet'}{'minimum_interval'} ) > $t ) ) {
