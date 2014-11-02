@@ -5,6 +5,7 @@ requires 'DBI';
 requires 'Digest::SHA';
 requires 'EV';
 requires 'File::Slurp';
+requires 'IO::Interactive';
 requires 'JSON';
 requires 'JSON::XS';
 requires 'LWP::UserAgent';
