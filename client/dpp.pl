@@ -73,11 +73,7 @@ GetOptions(
     -exitval => 1,   #exit with error code if there is something wrong with arguments so anything depending on exit code fails too
 );
 $cfg->{'log'}{'level'} ||= 'debug';
-if ($cfg->{'log'}{'target'} eq 'stderr') {
-    $cfg->{'log'}{'ansicolor'} ||= 1;
-} else {
-    $cfg->{'log'}{'ansicolor'} ||= 0;
-}
+
 
 
 my $logger = Log::Dispatch->new();
@@ -98,6 +94,7 @@ if ($cfg->{'config-dump'}) {
     print Dumper $cfg;
 }
 if ($cfg->{'log'}{'target'} eq 'stderr') {
+    $cfg->{'log'}{'ansicolor'} ||= 1;
     $logger->add(
         Log::Dispatch::Screen->new(
             name      => 'screen',
