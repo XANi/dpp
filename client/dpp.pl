@@ -82,16 +82,16 @@ if ($cfg->{'log'}{'target'} eq 'stderr') {
 
 my $logger = Log::Dispatch->new();
 if (!$cfg->{'log'}{'target'}) {
-    if( ! -t STDOUT || $cfg->{'daemonize'} ) {
+    if ( -t STDOUT) {
+        $cfg->{'log'}{'target'} = 'stderr';
+    } else {
         if ( defined( $cfg->{'log'}{'file'} ) ) {
             $cfg->{'log'}{'target'} = 'file';
         } else {
             $cfg->{'log'}{'target'} = 'syslog';
         }
     }
-    else {
-        $cfg->{'log'}{'target'} = 'stderr';
-    }
+
 }
 $cfg->{'log'}{'level'} ||= 'debug';
 if ($cfg->{'config-dump'}) {
