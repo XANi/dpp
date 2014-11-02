@@ -83,7 +83,11 @@ if ($cfg->{'log'}{'target'} eq 'stderr') {
 my $logger = Log::Dispatch->new();
 if (!$cfg->{'log'}{'target'}) {
     if( ! -t STDOUT || $cfg->{'daemonize'} ) {
-        $cfg->{'log'}{'target'} = 'file';
+        if ( defined( $cfg->{'log'}{'file'} ) {
+            $cfg->{'log'}{'target'} = 'file';
+        } else {
+            $cfg->{'log'}{'target'} = 'syslog';
+        }
     }
     else {
         $cfg->{'log'}{'target'} = 'stderr';
