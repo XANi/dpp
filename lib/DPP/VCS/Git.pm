@@ -181,6 +181,7 @@ sub init_submodule {
 sub update_submodule {
     my $self = shift;
     $self->_chdir;
+    $self->_system('git', 'submodule', 'init');
     return $self->_system('git', 'submodule', 'update');
 }
 
