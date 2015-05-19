@@ -1,3 +1,11 @@
 #!/bin/bash
-cd /usr/src/dpp
+if [ -e /etc/environment ] ; then
+   echo "sourcing /etc/environment"
+   source /etc/environment
+fi
+SCRIPTPATH=$(dirname "$0")
+cd "$SCRIPTPATH"
+if [ ! -e cpanfile.snapshot ] ; then
+    carton install
+fi
 /usr/bin/screen -dmS dpp bash -c 'carton exec client/dpp.pl' &
