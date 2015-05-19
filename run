@@ -3,6 +3,9 @@ if [ -e /etc/environment ] ; then
    echo "sourcing /etc/environment"
    source /etc/environment
 fi
+export http_proxy
+export https_proxy
+export no_proxy
 SCRIPTPATH=$(dirname "$0")
 cd "$SCRIPTPATH"
 if [ ! -e cpanfile.snapshot ] ; then
