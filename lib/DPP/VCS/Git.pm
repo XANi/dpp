@@ -140,7 +140,7 @@ sub verify_commit {
     $ENV{'LC_ALL'} = 'C';
     $self->_chdir;
     my ($stdin, $stdout);
-    my $pid = open3(undef, $stdout, $stdout, 'git', 'log', '--format=%GG', '-1', $commit);
+    my $pid = open3(undef, $stdout, $stdout, 'git', 'log', '--format=%GG', '-1', $commit, '--');
     my $out;
     while(<$stdout>) {
         $out .= $_;
