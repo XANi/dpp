@@ -1,8 +1,9 @@
 #!/bin/bash
-apt-get install git
-apt-get install cpanminus
-apt-get install puppet
-apt-get install make
-apt-get install gcc libssl-dev
+apt-get update
+apt-get install -y git
+apt-get install -y cpanminus
+apt-get install -y puppet
+apt-get install -y make
+apt-get install -y gcc libssl-dev
 cpanm Carton
 carton install
