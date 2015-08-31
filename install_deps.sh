@@ -1,6 +1,6 @@
 #!/bin/bash
 apt-get update
-apt-get install --no-install-recommends -y git
+apt-get install --no-install-recommends -y git-core ca-certificates
 apt-get install --no-install-recommends -y cpanminus
 apt-get install --no-install-recommends -y puppet
 apt-get install --no-install-recommends -y make

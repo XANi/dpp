@@ -40,6 +40,7 @@ if ($make) {
         $out->{'files'}{$file} = read_file($file);
     }
     write_file($cfg->{'bootstrap'}, Dump($out));
+    print "Written bootstrap into $cfg->{'bootstrap'}\n";
 } else {
     if ( ! -e $cfg->{'bootstrap'} ) {
         print "Bootstrap file $cfg->{'bootstrap'} not found, specify one with --bootstrap=file\n";
