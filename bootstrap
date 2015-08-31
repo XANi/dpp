@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 use common::sense;
-use YAML qw(Dump DumpFile Load LoadFile);
+use YAML::XS qw(Dump DumpFile Load LoadFile);
 use File::Slurp;
 
 use Getopt::Long;
