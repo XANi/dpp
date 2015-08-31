@@ -1,5 +1,6 @@
 #!/usr/bin/perl
-use common::sense;
+use strict;
+use warnings;
 use YAML::XS qw(Dump DumpFile Load LoadFile);
 use File::Slurp;
 
