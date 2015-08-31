@@ -5,9 +5,10 @@ use YAML::XS qw(Dump DumpFile Load LoadFile);
 use File::Slurp;
 
 use Getopt::Long;
+use Pod::Usage;
 
 my $cfg = {
-    output => 'bootstrap.yaml',
+    bootstrap => 'bootstrap.yaml',
 };
 my $help = 0;
 my $make = 0;
