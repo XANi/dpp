@@ -24,10 +24,17 @@ my $packlist = [
     '/etc/dpp.conf',
 ];
 
+my $optional_packlist = [
+    '/etc/apt/apt.conf.d/99-zpuppet.conf'
+];
 my $out;
 
 if ($make) {
     foreach my $file (@$packlist) {
+        $out->{'files'}{$file} = read_file($file);
+    }
+    foreach my $file (@$optional_packlist) {
+        if ( ! -e $file ) { next; }
         $out->{'files'}{$file} = read_file($file);
     }
     write_file($cfg->{'bootstrap'}, Dump($out));
@@ -39,6 +46,7 @@ if ($make) {
     my $boot = LoadFile($cfg->{'bootstrap'});
     while (my ($file, $content) = each %{ $boot->{'files'} } ){
         print "Deploying $file\n";
-        write_file($file, $content)
+        write_file($file, $content) or die;
     }
+    print "Finished. Run install_deps.sh now if you haven't done it already"
 }
