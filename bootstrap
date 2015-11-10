@@ -1,0 +1,55 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use YAML::XS qw(Dump DumpFile Load LoadFile);
+use File::Slurp;
+
+use Getopt::Long;
+use Pod::Usage;
+
+my $cfg = {
+    bootstrap => 'bootstrap.yaml',
+};
+my $help = 0;
+my $make = 0;
+GetOptions(
+    'help'        => \$help,
+    'make'        => \$make,
+    'bootstrap=s' => \$cfg->{'bootstrap'},
+) or pod2usage(
+    -verbose => 2,  #2 is "full man page" 1 is usage + options ,0/undef is only usage
+    -exitval => 1,   #exit with error code if there is something wrong with arguments so anything depending on exit code fails too
+);
+
+my $packlist = [
+    '/etc/puppet/hiera.yaml',
+    '/etc/dpp.conf',
+];
+
+my $optional_packlist = [
+    '/etc/apt/apt.conf.d/99-zpuppet.conf'
+];
+my $out;
+
+if ($make) {
+    foreach my $file (@$packlist) {
+        $out->{'files'}{$file} = read_file($file);
+    }
+    foreach my $file (@$optional_packlist) {
+        if ( ! -e $file ) { next; }
+        $out->{'files'}{$file} = read_file($file);
+    }
+    write_file($cfg->{'bootstrap'}, Dump($out));
+    print "Written bootstrap into $cfg->{'bootstrap'}\n";
+} else {
+    if ( ! -e $cfg->{'bootstrap'} ) {
+        print "Bootstrap file $cfg->{'bootstrap'} not found, specify one with --bootstrap=file\n";
+        exit 1;
+    }
+    my $boot = LoadFile($cfg->{'bootstrap'});
+    while (my ($file, $content) = each %{ $boot->{'files'} } ){
+        print "Deploying $file\n";
+        write_file($file, $content) or die;
+    }
+    print "Finished. Run install_deps.sh now if you haven't done it already"
+}
