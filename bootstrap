@@ -51,5 +51,5 @@ if ($make) {
         print "Deploying $file\n";
         write_file($file, $content) or die;
     }
-    print "Finished. Run install_deps.sh now if you haven't done it already"
+    print "Finished. Run install_deps.sh now if you haven't done it already\n"
 }
