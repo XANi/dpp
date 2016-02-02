@@ -1,0 +1,13 @@
+[Unit]
+Description=DPP
+
+
+[Service]
+ExecStart=/opt/dpp/run
+TimeoutStopSec=30
+Restart=always
+RestartSec=30s
+WorkingDirectory=/opt/dpp
+
+[Install]
+WantedBy=multi-user.target
